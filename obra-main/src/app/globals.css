@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #050507;
+  --color-foreground: #ffffff;
+  --color-card: #0d0d10;
+  --color-card-hover: #16161c;
+  --color-primary-main: #2563eb;
+  --color-primary-glow: rgba(37, 99, 235, 0.4);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+  --color-text-muted: #64748b;
+}
+
+:root {
+  --background: #050507;
+  --foreground: #ffffff;
+  --card: #0d0d10;
+  --card-hover: #16161c;
+  --primary: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.4);
+  --border: rgba(255, 255, 255, 0.04);
+  --text-muted: #64748b;
+}
+
+@layer base {
+  body {
+    background-color: var(--background);
+    color: white;
+    @apply antialiased overflow-x-hidden;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+}
+
+@utility glass-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility glass-card-hover {
+  background-color: var(--card-hover);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+@utility glass-panel {
+  background-color: #0d0d10 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.8);
+}
+
+@utility timeline-scroll {
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(37, 99, 235, 0.3);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(37, 99, 235, 0.5);
+  }
+}
+
+@utility btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 1rem;
+  font-weight: 900;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px var(--primary-glow);
+}
+
+@utility nav-item-active {
+  background-color: #2563eb;
+  color: white;
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
+}
+
+@utility search-bar {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  padding: 0.75rem 3rem;
+  font-size: 0.875rem;
+  color: white;
+  transition: all 0.2s;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes bounceSubtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-bounce-subtle {
+  animation: bounceSubtle 3s ease-in-out infinite;
+}

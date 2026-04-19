@@ -1,0 +1,195 @@
+{
+  "main": {
+    "id": "a6a3b1e6c8b79ffa",
+    "type": "split",
+    "children": [
+      {
+        "id": "bd51ecbb4fa08574",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "dc8dc2816c0d43fb",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Visualização em gráfico"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "54c2bfd9cececd0d",
+    "type": "split",
+    "children": [
+      {
+        "id": "1fc43f34b4d04186",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "cda948d46cea017a",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de arquivos"
+            }
+          },
+          {
+            "id": "bfcad07559f020df",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Procurar"
+            }
+          },
+          {
+            "id": "4f3e8f1d3848b49f",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "c1d3c5630459368d",
+    "type": "split",
+    "children": [
+      {
+        "id": "1d5502d0d634a45a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0de13454f1c2f832",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Links inversos"
+            }
+          },
+          {
+            "id": "c82437318cb1f114",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Links de saída"
+            }
+          },
+          {
+            "id": "b7edf8163de1eaf3",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "f88da908893dd62e",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas as propriedades"
+            }
+          },
+          {
+            "id": "37b8b52e68dd25a8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Sumário"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir a troca rápida": false,
+      "graph:Abrir visualização em gráfico": false,
+      "canvas:Criar novo canvas": false,
+      "daily-notes:Abrir a nota de hoje": false,
+      "templates:Inserir modelo": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Criar nova base": false
+    }
+  },
+  "active": "dc8dc2816c0d43fb",
+  "lastOpenFiles": [
+    "skills-lock.json",
+    "src/components/AdminSettings.tsx",
+    "src/components/ProjectEditCard.tsx",
+    "src/components/PhaseSummary.tsx",
+    "tsconfig.tsbuildinfo",
+    "src/components/AddSubStepForm.tsx",
+    "src/components/SubStepEditRow.tsx",
+    "AGENTS.md",
+    "src/components/PhaseEditModal.tsx",
+    "src/lib/auth.ts",
+    "node_modules/next/dist/docs/01-app/02-guides/production-checklist.md",
+    "node_modules/next/dist/docs/01-app/03-api-reference/02-components/font.md",
+    "CLAUDE.md"
+  ]
+}
