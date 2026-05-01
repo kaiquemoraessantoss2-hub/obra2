@@ -37,6 +37,7 @@ export interface TeamMember {
   isActive: boolean;
   createdAt?: string;
   permissions: Record<AppModule, AccessLevel>;
+  obrasAllowed: string[] | 'all';
 }
 
 export const PLAN_LIMITS: Record<PlanType, { maxMembers: number; label: string }> = {

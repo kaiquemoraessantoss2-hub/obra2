@@ -80,6 +80,7 @@ export default function AddMemberModal({
       isActive: true,
       createdAt: new Date().toISOString(),
       permissions: { ...DEFAULT_PERMISSIONS },
+      obrasAllowed: 'all',
     };
 
     try {

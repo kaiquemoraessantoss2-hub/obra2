@@ -175,14 +175,22 @@ export default function GlobalApplication() {
         const member = JSON.parse(savedMember);
         setCurrentMember(member);
         
-        // Também carregar dados do projeto para o membro
+        // Carregar apenas projetos da empresa do engenheiro que criou o acesso
         initializeDefaultData();
         const storedProjects = loadProjects();
-        setAllProjects(storedProjects);
-        if (storedProjects.length > 0) {
-          setActiveProjectId(storedProjects[0].id);
+        const ownerCompanyId = member.ownerId;
+        const companyProjects = ownerCompanyId
+          ? storedProjects.filter((p: any) => p.companyId === ownerCompanyId)
+          : storedProjects;
+        const allowed = member.obrasAllowed ?? 'all';
+        const visibleProjects = allowed === 'all'
+          ? companyProjects
+          : companyProjects.filter((p: any) => (allowed as string[]).includes(p.id));
+        setAllProjects(visibleProjects);
+        if (visibleProjects.length > 0) {
+          setActiveProjectId(visibleProjects[0].id);
           setCurrentProjectIndex(0);
-          const savedPhases = loadProjectPhases(storedProjects[0].id);
+          const savedPhases = loadProjectPhases(visibleProjects[0].id);
           setPhases(savedPhases || []);
         }
       } catch (e) {
@@ -1669,7 +1677,11 @@ setToast({ message: "Dados atualizados do Supabase!", type: 'success' });
                ) : null}
 
 {activeTab === 'teams' && (
-                   <TeamPage ownerId={currentUser?.companyId || 'default'} plan="GOLD" />
+                   <TeamPage
+                     ownerId={currentUser?.companyId || 'default'}
+                     plan="GOLD"
+                     obras={companyProjects.map(p => ({ id: p.id, name: p.name }))}
+                   />
                 )}
 
 {activeTab === 'reports' && (

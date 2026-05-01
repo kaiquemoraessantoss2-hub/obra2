@@ -87,9 +87,10 @@ const handleSubmit = (e: React.FormEvent) => {
       return;
     }
 
-    // Salvar no sessionStorage em vez de URL
-    sessionStorage.setItem('current_member', JSON.stringify(member));
-    onLogin(member);
+    // Salvar no sessionStorage com ownerId para filtrar projetos por empresa
+    const memberWithOwner = { ...member, ownerId: cred.ownerId };
+    sessionStorage.setItem('current_member', JSON.stringify(memberWithOwner));
+    onLogin(memberWithOwner);
   };
 
   return (

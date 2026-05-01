@@ -12,6 +12,11 @@ import {
 import AddMemberModal from './AddMemberModal';
 import PermissionsModal from './PermissionsModal';
 
+interface ObraOption {
+  id: string;
+  name: string;
+}
+
 const CREDENTIALS_KEY = 'member_credentials';
 
 function getStorageKey(ownerId: string): string {
@@ -40,9 +45,10 @@ function removeFromCredentials(email: string): void {
 interface TeamPageProps {
   ownerId?: string;
   plan?: PlanType;
+  obras?: ObraOption[];
 }
 
-export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPageProps) {
+export default function TeamPage({ ownerId = 'default', plan = 'GOLD', obras = [] }: TeamPageProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
@@ -86,9 +92,13 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
     setShowPermModal(true);
   };
 
-  const handleSavePermissions = (memberId: string, permissions: Record<AppModule, AccessLevel>) => {
-    const updated = members.map(m => 
-      m.id === memberId ? { ...m, permissions } : m
+  const handleSavePermissions = (
+    memberId: string,
+    permissions: Record<AppModule, AccessLevel>,
+    obrasAllowed: string[] | 'all'
+  ) => {
+    const updated = members.map(m =>
+      m.id === memberId ? { ...m, permissions, obrasAllowed } : m
     );
     saveMembers(updated, ownerId);
     setMembers(updated);
@@ -196,6 +206,7 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
         isOpen={showPermModal}
         onClose={() => setShowPermModal(false)}
         member={selectedMember}
+        obras={obras}
         onSave={handleSavePermissions}
       />
     </div>
