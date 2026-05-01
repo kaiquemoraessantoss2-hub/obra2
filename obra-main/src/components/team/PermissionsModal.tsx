@@ -157,7 +157,7 @@ export default function PermissionsModal({
               ) : (
                 obras.map((obra) => {
                   const checked =
-                    obrasAllowed !== 'all' && obrasAllowed.includes(obra.id);
+                    Array.isArray(obrasAllowed) && obrasAllowed.includes(obra.id);
                   return (
                     <button
                       key={obra.id}
