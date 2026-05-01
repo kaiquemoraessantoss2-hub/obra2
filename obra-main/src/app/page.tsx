@@ -165,19 +165,8 @@ export default function GlobalApplication() {
   };
 
   useEffect(() => {
-    // Restaurar sessão do Supabase se houver uma ativa
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user && !currentUser) {
-        const isAdminEmail = session.user.email === 'admin@obraflow.com';
-        setCurrentUser({
-          id: session.user.id,
-          companyId: isAdminEmail ? 'obraflow_master' : (session.user.user_metadata.companyId || `comp_${session.user.id}`),
-          name: session.user.user_metadata.full_name || session.user.email || '',
-          email: session.user.email || '',
-          role: isAdminEmail ? 'SUPERADMIN' : (session.user.user_metadata.role || 'ADMIN')
-        });
-      }
-    });
+    // Sempre limpar sessão ao carregar o app para exibir a tela de login
+    supabase.auth.signOut();
 
     // Verificar sessionStorage primeiro
     const savedMember = sessionStorage.getItem('current_member');
