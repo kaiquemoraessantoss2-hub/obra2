@@ -1,6 +1,6 @@
 export type Status = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'DELAYED' | 'BLOCKED';
 export type Phase = 'Structure' | 'Masonry' | 'Finishing' | 'Finalization' | 'Hydraulic' | 'Electrical';
-export type FloorType = 'REGULAR' | 'BASEMENT' | 'GROUND' | 'LEISURE' | 'TECHNICAL' | 'ATRIUM' | 'ROOFTOP';
+export type FloorType = 'REGULAR' | 'BASEMENT' | 'GROUND' | 'LEISURE' | 'TECHNICAL' | 'ATRIUM' | 'ROOFTOP' | 'SOBRESOLO';
 export type BillingStatus = 'ACTIVE' | 'OVERDUE' | 'TRIAL';
 
 export interface Service {
@@ -53,6 +53,7 @@ export interface BuildingConfig {
   address: string;
   totalFloors: number;
   basements: number;
+  sobresolos: number;
   hasLeisure: boolean;
   hasAtrium: boolean;
   hasRooftop: boolean;
@@ -105,7 +106,7 @@ export interface Floor {
   id: string;
   number: number;
   label: string;
-  type: 'BASEMENT' | 'GROUND' | 'REGULAR' | 'ROOFTOP' | 'TECHNICAL' | 'LEISURE' | 'ATRIUM';
+  type: 'BASEMENT' | 'GROUND' | 'REGULAR' | 'ROOFTOP' | 'TECHNICAL' | 'LEISURE' | 'ATRIUM' | 'SOBRESOLO';
   phase: string;
   services: Service[];
   photos?: string[];
@@ -150,6 +151,7 @@ export interface User {
 export const FLOOR_ORDER: Record<FloorType, number> = {
   BASEMENT: -1,
   GROUND: 0,
+  SOBRESOLO: 0.5,
   REGULAR: 1,
   LEISURE: 100,
   TECHNICAL: 200,

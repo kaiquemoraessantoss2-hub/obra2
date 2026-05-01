@@ -26,6 +26,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
     address: '',
     totalFloors: 15,
     basements: 2,
+    sobresolos: 0,
     hasLeisure: true,
     hasAtrium: false,
     hasRooftop: false,
@@ -45,6 +46,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
         address: existingConfig.address,
         totalFloors: existingConfig.totalFloors,
         basements: existingConfig.basements,
+        sobresolos: (existingConfig as any).sobresolos || 0,
         hasLeisure: existingConfig.hasLeisure,
         hasAtrium: existingConfig.hasAtrium,
         hasRooftop: existingConfig.hasRooftop,
@@ -59,6 +61,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
         address: '',
         totalFloors: 15,
         basements: 2,
+        sobresolos: 0,
         hasLeisure: true,
         hasAtrium: false,
         hasRooftop: false,
@@ -80,81 +83,42 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
   const generateFloors = (): Floor[] => {
     const floors: Floor[] = [];
     let floorId = 0;
+    let nextNumber = 1;
 
     for (let i = formData.basements; i >= 1; i--) {
-      floors.push({
-        id: `f_${floorId++}`,
-        number: -i,
-        label: `Subsolo ${i}`,
-        type: 'BASEMENT',
-        phase: 'Structure',
-        services: [],
-      });
+      floors.push({ id: `f_${floorId++}`, number: -i, label: `Subsolo ${i}`, type: 'BASEMENT', phase: 'Structure', services: [] });
     }
 
-    floors.push({
-      id: `f_${floorId++}`,
-      number: 0,
-      label: 'Térreo',
-      type: 'GROUND',
-      phase: 'Structure',
-      services: [],
-    });
+    floors.push({ id: `f_${floorId++}`, number: 0, label: 'Térreo', type: 'GROUND', phase: 'Structure', services: [] });
+
+    for (let i = 1; i <= formData.sobresolos; i++) {
+      floors.push({ id: `f_${floorId++}`, number: nextNumber, label: formData.sobresolos === 1 ? 'Sobresolo' : `Sobresolo ${i}`, type: 'SOBRESOLO', phase: 'Structure', services: [] });
+      nextNumber++;
+    }
 
     if (formData.hasLeisure) {
-      floors.push({
-        id: `f_${floorId++}`,
-        number: 1,
-        label: 'Lazer',
-        type: 'LEISURE',
-        phase: 'Finishing',
-        services: [],
-      });
-      floorId++;
+      floors.push({ id: `f_${floorId++}`, number: nextNumber, label: 'Lazer', type: 'LEISURE', phase: 'Finishing', services: [] });
+      nextNumber++;
     }
 
     for (let i = 1; i <= formData.totalFloors; i++) {
-      floors.push({
-        id: `f_${floorId++}`,
-        number: formData.hasLeisure ? i + 1 : i,
-        label: `${formData.hasLeisure ? i + 1 : i}º Andar`,
-        type: 'REGULAR',
-        phase: 'Masonry',
-        services: [],
-      });
+      floors.push({ id: `f_${floorId++}`, number: nextNumber, label: `${nextNumber}º Andar`, type: 'REGULAR', phase: 'Masonry', services: [] });
+      nextNumber++;
     }
 
     if (formData.hasAtrium) {
-      floors.push({
-        id: `f_${floorId++}`,
-        number: floors.length,
-        label: 'Átrio',
-        type: 'ATRIUM',
-        phase: 'Finishing',
-        services: [],
-      });
+      floors.push({ id: `f_${floorId++}`, number: nextNumber, label: 'Átrio', type: 'ATRIUM', phase: 'Finishing', services: [] });
+      nextNumber++;
     }
 
     if (formData.hasRooftop) {
-      floors.push({
-        id: `f_${floorId++}`,
-        number: floors.length + 1,
-        label: 'Cobertura',
-        type: 'ROOFTOP',
-        phase: 'Finalization',
-        services: [],
-      });
+      floors.push({ id: `f_${floorId++}`, number: nextNumber, label: 'Cobertura', type: 'ROOFTOP', phase: 'Finalization', services: [] });
+      nextNumber++;
     }
 
     for (let i = 1; i <= formData.technicalAreas; i++) {
-      floors.push({
-        id: `f_${floorId++}`,
-        number: floors.length + 1,
-        label: i === 1 ? 'Área Técnica' : `Área Técnica ${i}`,
-        type: 'TECHNICAL',
-        phase: 'Technical',
-        services: [],
-      });
+      floors.push({ id: `f_${floorId++}`, number: nextNumber, label: formData.technicalAreas === 1 ? 'Área Técnica' : `Área Técnica ${i}`, type: 'TECHNICAL', phase: 'Technical', services: [] });
+      nextNumber++;
     }
 
     return floors;
@@ -166,30 +130,35 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
     }
   }, [formData, isOpen]);
 
+  const buildConfig = (): BuildingConfig => ({
+    id: existingConfig?.id || `bc_${Date.now()}`,
+    name: formData.name,
+    address: formData.address,
+    totalFloors: formData.totalFloors,
+    basements: formData.basements,
+    sobresolos: formData.sobresolos,
+    hasLeisure: formData.hasLeisure,
+    hasAtrium: formData.hasAtrium,
+    hasRooftop: formData.hasRooftop,
+    technicalAreas: formData.technicalAreas,
+    apartmentsPerFloor: formData.apartmentsPerFloor,
+    totalUnits: formData.totalFloors * formData.apartmentsPerFloor,
+    floors: generateFloors(),
+    createdAt: existingConfig?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
   const handleSubmit = () => {
     if (hasExistingFloors && !confirmOverwrite) {
       setConfirmOverwrite(true);
       return;
     }
+    onSave(buildConfig());
+    onClose();
+  };
 
-    const config: BuildingConfig = {
-      id: existingConfig?.id || `bc_${Date.now()}`,
-      name: formData.name,
-      address: formData.address,
-      totalFloors: formData.totalFloors,
-      basements: formData.basements,
-      hasLeisure: formData.hasLeisure,
-      hasAtrium: formData.hasAtrium,
-      hasRooftop: formData.hasRooftop,
-      technicalAreas: formData.technicalAreas,
-      apartmentsPerFloor: formData.apartmentsPerFloor,
-      totalUnits: formData.totalFloors * formData.apartmentsPerFloor,
-      floors: previewFloors,
-      createdAt: existingConfig?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    onSave(config);
+  const handleConfirmOverwrite = () => {
+    onSave(buildConfig());
     onClose();
   };
 
@@ -219,15 +188,17 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
               <p className="text-amber-500 font-black text-sm">Atenção: pavimentos existentes</p>
             </div>
             <p className="text-slate-400 text-sm mb-4">
-              Este empreendimento já possui {existingConfig?.floors.length} pavimentos cadastrados. 
-              Ao gerar nova configuração, os dados de execução por andar serão Resetados.
+              Este empreendimento já possui {existingConfig?.floors.length} pavimentos cadastrados.
+              Ao gerar nova configuração, os dados de execução por andar serão resetados.
             </p>
-            <button 
-              onClick={() => setConfirmOverwrite(false)}
-              className="text-amber-500 text-sm font-bold hover:underline"
-            >
-              Cancelar
-            </button>
+            <div className="flex gap-6">
+              <button onClick={() => setConfirmOverwrite(false)} className="text-slate-400 text-sm font-bold hover:underline">
+                Cancelar
+              </button>
+              <button onClick={handleConfirmOverwrite} className="text-amber-400 text-sm font-bold hover:underline">
+                Confirmar e sobrescrever
+              </button>
+            </div>
           </div>
         )}
 
@@ -257,48 +228,60 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
                 <Layers size={12} /> Andares Tipo
               </label>
-              <input 
+              <input
                 type="number"
                 min={1}
                 value={formData.totalFloors}
                 onChange={(e) => setFormData({ ...formData, totalFloors: parseInt(e.target.value) || 1 })}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-4 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
                 <Layers size={12} /> Subsolos
               </label>
-              <input 
+              <input
                 type="number"
                 min={0}
                 value={formData.basements}
                 onChange={(e) => setFormData({ ...formData, basements: parseInt(e.target.value) || 0 })}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-4 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
+                <Layers size={12} /> Sobresolos
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={formData.sobresolos}
+                onChange={(e) => setFormData({ ...formData, sobresolos: parseInt(e.target.value) || 0 })}
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-4 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
                 <Home size={12} /> Apts/Andar
               </label>
-              <input 
+              <input
                 type="number"
                 min={1}
                 value={formData.apartmentsPerFloor}
                 onChange={(e) => setFormData({ ...formData, apartmentsPerFloor: parseInt(e.target.value) || 1 })}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-4 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
                 <Users size={12} /> Total Unidades
               </label>
-              <div className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-6 py-4 text-slate-400 font-bold">
+              <div className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-4 py-4 text-slate-400 font-bold">
                 {formData.totalUnits}
               </div>
             </div>
@@ -356,26 +339,24 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
             </h3>
             <div className="glass-card p-4 rounded-2xl max-h-48 overflow-y-auto">
               <div className="flex flex-wrap gap-2">
-                {previewFloors.slice(0, 20).map((floor, idx) => (
-                  <span 
+                {previewFloors.map((floor) => (
+                  <span
                     key={floor.id}
                     className={cn(
                       "px-3 py-1 rounded-lg text-xs font-black",
                       floor.type === 'BASEMENT' && "bg-slate-700/50 text-slate-400",
                       floor.type === 'GROUND' && "bg-blue-600/20 text-blue-400",
+                      floor.type === 'SOBRESOLO' && "bg-cyan-600/20 text-cyan-400",
                       floor.type === 'LEISURE' && "bg-purple-600/20 text-purple-400",
                       floor.type === 'REGULAR' && "bg-emerald-600/20 text-emerald-400",
+                      floor.type === 'ATRIUM' && "bg-indigo-600/20 text-indigo-400",
+                      floor.type === 'ROOFTOP' && "bg-rose-600/20 text-rose-400",
                       floor.type === 'TECHNICAL' && "bg-amber-600/20 text-amber-400",
                     )}
                   >
                     {floor.label}
                   </span>
                 ))}
-                {previewFloors.length > 20 && (
-                  <span className="px-3 py-1 text-xs font-black text-slate-500">
-                    +{previewFloors.length - 20} mais...
-                  </span>
-                )}
               </div>
               <p className="text-slate-500 text-xs mt-4">
                 Total: {previewFloors.length} pavimentos

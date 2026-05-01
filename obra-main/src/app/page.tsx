@@ -24,6 +24,7 @@ import {
   Bell,
   ChevronDown,
   Trash2,
+  Database,
   Upload,
   Zap,
   Droplets,
@@ -37,7 +38,8 @@ import {
   Camera,
   Key,
   X,
-  Pencil
+  Pencil,
+  Menu
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -71,13 +73,15 @@ import { ModuleGuard, TeamPage, LoginPage, PendenciasSection, MedicaoObraSection
 import { Floor, Status, Project, Company, User, BuildingConfig, ConstructionPhase, FloorExecution } from '@/types';
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
 import { getProgressPercentage, cn } from '@/lib/utils';
-import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState } from '@/lib/auth';
+import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, loadCompaniesFromSupabase, saveCompanyToSupabase, deleteUserFromSupabase } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function GlobalApplication() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentMember, setCurrentMember] = useState<any>(null);
   const [showMemberLogin, setShowMemberLogin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -161,6 +165,20 @@ export default function GlobalApplication() {
   };
 
   useEffect(() => {
+    // Restaurar sessão do Supabase se houver uma ativa
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && !currentUser) {
+        const isAdminEmail = session.user.email === 'admin@obraflow.com';
+        setCurrentUser({
+          id: session.user.id,
+          companyId: isAdminEmail ? 'obraflow_master' : (session.user.user_metadata.companyId || `comp_${session.user.id}`),
+          name: session.user.user_metadata.full_name || session.user.email || '',
+          email: session.user.email || '',
+          role: isAdminEmail ? 'SUPERADMIN' : (session.user.user_metadata.role || 'ADMIN')
+        });
+      }
+    });
+
     // Verificar sessionStorage primeiro
     const savedMember = sessionStorage.getItem('current_member');
     if (savedMember) {
@@ -190,36 +208,72 @@ export default function GlobalApplication() {
       const users = getAllUsers();
       
       const supabaseProfiles = await loadUserProfilesFromSupabase();
-      
-      const typedCompanies: Company[] = storedCompanies.map(c => ({
-        ...c,
-        plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
-        billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED'
-      }));
+      const supabaseCompanies = await loadCompaniesFromSupabase();
       
       const now = new Date();
       const defaultEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      const supabaseTypedCompanies: Company[] = supabaseProfiles
-        .filter((p: any) => p.role !== 'SUPERADMIN')
-        .map((p: any) => ({
-          id: p.companyId || `comp_${p.id}`,
-          name: p.name || p.email,
-          plan: 'Básico' as 'Básico' | 'Pro' | 'Empresa',
-          monthlyValue: 199,
-          planStartDate: now.toISOString(),
-          planEndDate: defaultEnd,
-          billingStatus: 'ACTIVE' as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
-          isPaused: false,
-          activeUsers: 1,
-          createdAt: now.toISOString()
+      
+      let mergedCompanies: Company[] = [];
+      
+      if (supabaseCompanies.length > 0) {
+        const typedFromSupabase: Company[] = supabaseCompanies.map((c: any) => ({
+          ...c,
+          plan: (c.plan || 'Básico') as 'Básico' | 'Pro' | 'Empresa',
+          billingStatus: (c.billingStatus || 'ACTIVE') as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED'
         }));
+        
+        const supabaseTypedCompanies: Company[] = supabaseProfiles
+          .filter((p: any) => p.role !== 'SUPERADMIN')
+          .map((p: any) => ({
+            id: p.companyId || `comp_${p.id}`,
+            name: p.name || p.email,
+            plan: 'Básico' as 'Básico' | 'Pro' | 'Empresa',
+            monthlyValue: 199,
+            planStartDate: now.toISOString(),
+            planEndDate: defaultEnd,
+            billingStatus: 'ACTIVE' as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
+            isPaused: false,
+            activeUsers: 1,
+            createdAt: now.toISOString()
+          }));
+        
+        const supabaseCompanyMap = new Map(typedFromSupabase.map((c: any) => [c.id, c]));
+        supabaseTypedCompanies.forEach(supabaseCompany => {
+          if (!supabaseCompanyMap.has(supabaseCompany.id)) {
+            supabaseCompanyMap.set(supabaseCompany.id, supabaseCompany);
+          }
+        });
+        
+        mergedCompanies = Array.from(supabaseCompanyMap.values());
+      } else {
+        const typedCompanies: Company[] = storedCompanies.map(c => ({
+          ...c,
+          plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
+          billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED'
+        }));
+        
+        const supabaseTypedCompanies: Company[] = supabaseProfiles
+          .filter((p: any) => p.role !== 'SUPERADMIN')
+          .map((p: any) => ({
+            id: p.companyId || `comp_${p.id}`,
+            name: p.name || p.email,
+            plan: 'Básico' as 'Básico' | 'Pro' | 'Empresa',
+            monthlyValue: 199,
+            planStartDate: now.toISOString(),
+            planEndDate: defaultEnd,
+            billingStatus: 'ACTIVE' as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
+            isPaused: false,
+            activeUsers: 1,
+            createdAt: now.toISOString()
+          }));
 
-      const mergedCompanies = [...typedCompanies];
-      supabaseTypedCompanies.forEach(supabaseCompany => {
-        if (!mergedCompanies.find(c => c.id === supabaseCompany.id)) {
-          mergedCompanies.push(supabaseCompany);
-        }
-      });
+        mergedCompanies = [...typedCompanies];
+        supabaseTypedCompanies.forEach(supabaseCompany => {
+          if (!mergedCompanies.find(c => c.id === supabaseCompany.id)) {
+            mergedCompanies.push(supabaseCompany);
+          }
+        });
+      }
 
       const supabaseUsers = supabaseProfiles.map((p: any) => ({
         id: p.id,
@@ -229,7 +283,9 @@ export default function GlobalApplication() {
         companyId: p.companyId || `comp_${p.id}`,
         isActive: true
       }));
-      const mergedUsers = [...users];
+      
+      const localUsers = users.filter((u: any) => u.password);
+      const mergedUsers = [...localUsers];
       supabaseUsers.forEach((su: any) => {
         if (!mergedUsers.find((u: any) => u.id === su.id)) mergedUsers.push(su);
       });
@@ -437,6 +493,43 @@ export default function GlobalApplication() {
     setToast({ message: "Obra criada!", type: 'success' });
   };
 
+  const handleCreateProjectFromConfig = (config: BuildingConfig) => {
+    const disciplines = ['Elétrica', 'Hidráulica', 'Revestimento', 'Alvenaria'];
+    const floorsWithServices = config.floors.map((f, idx) => ({
+      ...f,
+      services: disciplines.map((d, di) => ({ id: `svc_${f.id}_${di}`, name: d, status: 'NOT_STARTED' as Status })),
+    }));
+
+    const newProj: Project = {
+      id: `p_${Date.now()}`,
+      companyId: currentViewCompanyId,
+      name: config.name,
+      location: config.address,
+      totalFloors: config.totalFloors,
+      basements: config.basements,
+      hasLeisure: config.hasLeisure,
+      hasAtrium: config.hasAtrium,
+      technicalAreas: config.technicalAreas,
+      floors: floorsWithServices,
+      phases: [],
+    };
+
+    const configWithServices: BuildingConfig = { ...config, floors: floorsWithServices };
+
+    const updatedProjects = [...allProjects, newProj];
+    setAllProjects(updatedProjects);
+    saveProjects(updatedProjects);
+
+    const newIndex = updatedProjects.length - 1;
+    setCurrentProjectIndex(newIndex);
+    setActiveProjectId(newProj.id);
+    setBuildingConfig(configWithServices);
+    saveProjectConfig(newProj.id, configWithServices);
+    setPhases([]);
+    setIsAddingProject(false);
+    setToast({ message: "Obra criada com sucesso!", type: 'success' });
+  };
+
 const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!project) return;
     const file = e.target.files?.[0];
@@ -514,6 +607,13 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBuildingConfig(config);
     if (activeProjectId) {
       saveProjectConfig(activeProjectId, config);
+      const updatedProjects = allProjects.map(ap =>
+        ap.id === activeProjectId
+          ? { ...ap, name: config.name, location: config.address, totalFloors: config.totalFloors, basements: config.basements, hasLeisure: config.hasLeisure, hasAtrium: config.hasAtrium, technicalAreas: config.technicalAreas, floors: config.floors }
+          : ap
+      );
+      setAllProjects(updatedProjects);
+      saveProjects(updatedProjects);
     }
     setToast({ message: "Prédio configurado!", type: 'success' });
   };
@@ -609,8 +709,66 @@ if (currentMember) {
 
     return (
       <div className="min-h-screen flex bg-[var(--background)]">
+        {/* Member view - Mobile overlay */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* Member view - Mobile sidebar drawer */}
+        <div className={`fixed top-0 left-0 z-50 h-full w-[280px] flex flex-col p-8 space-y-10 border-r border-white/5 bg-[var(--background)] transition-transform duration-300 ease-in-out lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white"><Building2 size={24}/> ObraFlow</div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="flex-1 space-y-2 no-scrollbar overflow-y-auto">
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Menu</p>
+            {hasAccess('DASHBOARD') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'dashboard' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <LayoutDashboard size={18} /> Dashboard
+              </button>
+            )}
+            {hasAccess('CRONOGRAMA') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'timeline' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'timeline' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <Clock size={18} /> Cronograma
+              </button>
+            )}
+            {hasAccess('PAVIMENTOS') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'engineering' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'engineering' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <Box size={18} /> Pavimentos
+              </button>
+            )}
+            {hasAccess('MEDICAO') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'measurement' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'measurement' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <BarChart3 size={18} /> Medição
+              </button>
+            )}
+            {hasAccess('DOCUMENTOS') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'reports' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'reports' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <FileText size={18} /> Documentos
+              </button>
+            )}
+            {hasAccess('PENDENCIAS') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'pendencias' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'pendencias' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <AlertTriangle size={18} /> Pendências
+              </button>
+            )}
+            {hasAccess('MEDICAO_OBRA') && (
+              <button onClick={() => { setCurrentMember((prev: any) => ({ ...prev, activeModule: 'medicoes' })); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'medicoes' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <DollarSign size={18} /> Medições
+              </button>
+            )}
+          </nav>
+          <button onClick={() => { sessionStorage.removeItem('current_member'); setCurrentMember(null); setShowMemberLogin(true); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
+        </div>
+
+        {/* Desktop sidebar */}
         <aside className="hidden lg:flex w-[280px] flex-col p-8 space-y-10 border-r border-white/5 z-10 sticky top-0 h-screen">
-          <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white">Building2 ObraFlow</div>
+          <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white"><Building2 size={24}/> ObraFlow</div>
           <nav className="flex-1 space-y-2">
             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Menu</p>
             {hasAccess('DASHBOARD') && (
@@ -649,9 +807,22 @@ if (currentMember) {
               </button>
             )}
           </nav>
-          <button onClick={() => { sessionStorage.removeItem('current_member'); setCurrentMember(null); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
+          <button onClick={() => { sessionStorage.removeItem('current_member'); setCurrentMember(null); setShowMemberLogin(true); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
         </aside>
-        <main className="flex-1 overflow-y-auto pb-20 p-10">
+        <main className="flex-1 overflow-y-auto pb-20">
+          {/* Member view mobile header */}
+          <header className="sticky top-0 z-20 flex items-center gap-3 px-4 sm:px-8 py-4 bg-[var(--background)]/80 backdrop-blur-md border-b border-white/5 lg:hidden">
+            <button
+              className="p-2 text-slate-500 hover:text-white transition-colors"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
+            <div className="flex items-center gap-2 font-black text-base italic tracking-tighter text-white"><Building2 size={18}/> ObraFlow</div>
+            <div className="flex-1" />
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-black text-sm">{currentMember.name[0]}</div>
+          </header>
+          <div className="p-4 sm:p-6 lg:p-10">
           {activeModule === 'dashboard' && hasAccess('DASHBOARD') && (
             <ModuleGuard module="DASHBOARD" memberPermissions={perms} access={canEdit('DASHBOARD') ? 'EDITAR' : 'VER'}>
               <div className="space-y-6">
@@ -888,10 +1059,22 @@ if (currentMember) {
               <p className="text-sm text-slate-500 mb-6">Selecione uma seção no menu.</p>
             </div>
           )}
+          </div>
         </main>
       </div>
     );
   }
+
+  if (showMemberLogin) return (
+    <LoginPage
+      onLogin={(member: any) => {
+        sessionStorage.setItem('current_member', JSON.stringify(member));
+        setCurrentMember(member);
+        setShowMemberLogin(false);
+      }}
+      onClose={() => setShowMemberLogin(false)}
+    />
+  );
 
   if (!currentUser) return <Auth onLogin={handleLogin} />;
   
@@ -930,22 +1113,12 @@ if (currentMember) {
         </div>
       )}
 
-      {isAddingProject && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-          <div className="glass-card w-full max-w-lg p-12 rounded-[40px] border-white/5 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600" />
-             <h2 className="text-2xl font-black text-white mb-8">Nova Obra Premium</h2>
-             <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); createComplexProject({ name: fd.get('name'), floors: Number(fd.get('floors')), basements: Number(fd.get('basements')) }); }} className="space-y-6">
-                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 ml-1 uppercase">Identificação</label><input required name="name" className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all" placeholder="Nome do Empreendimento" /></div>
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 ml-1 uppercase">Andares</label><input name="floors" type="number" defaultValue={10} className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-4 text-white font-bold" /></div>
-                   <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 ml-1 uppercase">Subsolos</label><input name="basements" type="number" defaultValue={2} className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-4 text-white font-bold" /></div>
-                </div>
-                <div className="flex gap-4 pt-6"><button type="button" onClick={() => setIsAddingProject(false)} className="flex-1 py-4 text-slate-500 font-black text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-2 btn-primary">Gerar Estrutura</button></div>
-             </form>
-          </div>
-        </div>
-      )}
+      <BuildingConfigModal
+        isOpen={isAddingProject}
+        onClose={() => setIsAddingProject(false)}
+        onSave={handleCreateProjectFromConfig}
+        existingConfig={null}
+      />
 
       {isAddingMember && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
@@ -961,6 +1134,55 @@ if (currentMember) {
         </div>
       )}
 
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar drawer */}
+      <div className={`fixed top-0 left-0 z-50 h-full w-[280px] flex flex-col p-8 space-y-10 border-r border-white/5 bg-[var(--background)] transition-transform duration-300 ease-in-out lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white"><Building2 size={24}/> ObraFlow</div>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="flex-1 space-y-8 no-scrollbar overflow-y-auto">
+          {currentUser.role === 'SUPERADMIN' ? (
+            <div className="space-y-2">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Administração SaaS</p>
+              <NavItem icon={Shield} label="Painel Master" active={activeTab === 'admin_dashboard'} onClick={() => { setActiveTab('admin_dashboard'); setIsMobileMenuOpen(false); }} />
+              <NavItem icon={CreditCard} label="Faturamento" active={activeTab === 'billing'} onClick={() => { setActiveTab('billing'); setIsMobileMenuOpen(false); }} />
+              <NavItem icon={Settings} label="Configurações" active={activeTab === 'admin_settings'} onClick={() => { setActiveTab('admin_settings'); setIsMobileMenuOpen(false); }} />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Principal</p>
+                <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={Clock} label="Cronograma" active={activeTab === 'timeline'} onClick={() => { setActiveTab('timeline'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={CalendarIcon} label="Calendário" active={activeTab === 'calendar'} onClick={() => { setActiveTab('calendar'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={Box} label="Gestão Técnica" active={activeTab === 'engineering'} onClick={() => { setActiveTab('engineering'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={Building} label="Projetos" active={activeTab === 'projects'} onClick={() => { setActiveTab('projects'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={Users} label="Equipe" active={activeTab === 'teams'} onClick={() => { setActiveTab('teams'); setIsMobileMenuOpen(false); }} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Mais</p>
+                <NavItem icon={FileText} label="Relatórios" active={activeTab === 'reports'} onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={AlertTriangle} label="Pendências" active={activeTab === 'pendencias'} onClick={() => { setActiveTab('pendencias'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={DollarSign} label="Medições" active={activeTab === 'medicoes'} onClick={() => { setActiveTab('medicoes'); setIsMobileMenuOpen(false); }} />
+                <NavItem icon={Settings} label="Ajustes" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }} />
+              </div>
+            </>
+          )}
+        </nav>
+        <button onClick={() => setCurrentUser(null)} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16}/> Sair</button>
+      </div>
+
+      {/* Desktop sidebar */}
       <aside className="hidden lg:flex w-[280px] flex-col p-8 space-y-10 border-r border-white/5 z-10 sticky top-0 h-screen">
         <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white"><Building2 size={24}/> ObraFlow</div>
         <nav className="flex-1 space-y-8 no-scrollbar overflow-y-auto">
@@ -997,39 +1219,72 @@ if (currentMember) {
 
 
       <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
-        <header className="sticky top-0 z-20 flex items-center justify-between px-10 py-6 bg-[var(--background)]/80 backdrop-blur-md">
-          <div className="flex-1 max-w-[500px] relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} /><input className="search-bar w-full" placeholder="Buscar no sistema..." /></div>
-          <div className="flex items-center gap-6"><Bell className="text-slate-500" size={20}/><div className="flex items-center gap-3 pl-6 border-l border-white/5 text-right"><div><p className="text-sm font-bold text-white">{currentUser.name}</p><p className="text-[9px] text-slate-500 font-black uppercase">{currentUser.role}</p></div><div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-black">{currentUser.name[0]}</div></div></div>
+        <header className="sticky top-0 z-20 flex items-center gap-3 px-4 sm:px-8 lg:px-10 py-4 sm:py-6 bg-[var(--background)]/80 backdrop-blur-md border-b border-white/5">
+          {/* Hamburger button - mobile only */}
+          <button
+            className="lg:hidden p-2 text-slate-500 hover:text-white transition-colors flex-shrink-0"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
+          {/* Search bar - hidden on small mobile */}
+          <div className="hidden sm:flex flex-1 max-w-[500px] relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+            <input className="search-bar w-full" placeholder="Buscar no sistema..." />
+          </div>
+          {/* Spacer on mobile */}
+          <div className="flex-1 sm:hidden" />
+          <div className="flex items-center gap-3 sm:gap-6">
+            <Bell className="text-slate-500" size={20}/>
+            <div className="flex items-center gap-2 sm:gap-3 pl-3 sm:pl-6 border-l border-white/5 text-right">
+              <div className="hidden sm:block">
+                <p className="text-sm font-bold text-white">{currentUser.name}</p>
+                <p className="text-[9px] text-slate-500 font-black uppercase">{currentUser.role}</p>
+              </div>
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-blue-600 flex items-center justify-center font-black text-sm">{currentUser.name[0]}</div>
+            </div>
+          </div>
         </header>
 
-        <div className="px-10 mt-6 space-y-10">
+        <div className="px-4 sm:px-6 lg:px-10 mt-4 lg:mt-6 space-y-6 lg:space-y-10">
           {currentUser.role === 'SUPERADMIN' && activeTab === 'admin_dashboard' && (
              <AdminPanel 
                 companies={companies} 
                 users={allUsers}
                 togglePause={togglePauseCompany} 
                 impersonate={(id: string) => { setCurrentViewCompanyId(id); setActiveTab('dashboard'); }} 
-                onRenew={(id: string) => {
-                   setCompanies(prev => prev.map(c => {
-                      if (c.id === id) {
-                         const currentEnd = new Date(c.planEndDate || Date.now());
-                         const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + 30 * 24 * 60 * 60 * 1000);
-                         return { ...c, planEndDate: newEnd.toISOString(), billingStatus: 'ACTIVE', isPaused: false };
-                      }
-                      return c;
-                   }));
-setToast({ message: "Plano renovado por +30 dias!", type: 'success' });
-                 }}
-                 onChangePlan={(companyId: string, currentPlan: string) => {
-                    const newPlan = prompt(`Plano atual: ${currentPlan}\nDigite o novo plano (Básico, Pro, Empresa):`);
-                    if (newPlan && ['Básico', 'Pro', 'Empresa'].includes(newPlan)) {
-                      const prices: Record<string, number> = { 'Básico': 199, 'Pro': 499, 'Empresa': 1200 };
-                      const updatedCompanies = companies.map(c => c.id === companyId ? { ...c, plan: newPlan as 'Básico' | 'Pro' | 'Empresa', monthlyValue: prices[newPlan] } : c);
-                      setCompanies(updatedCompanies);
-                      saveCompanies(updatedCompanies);
-                      setToast({ message: `Plano alterado para ${newPlan}!`, type: 'success' });
-                    }
-                 }}
+onRenew={async (id: string) => {
+                    const updatedCompanies = companies.map(c => {
+                       if (c.id === id) {
+                          const currentEnd = new Date(c.planEndDate || Date.now());
+                          const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + 30 * 24 * 60 * 60 * 1000);
+                          const updated = { ...c, planEndDate: newEnd.toISOString(), billingStatus: 'ACTIVE' as const, isPaused: false };
+                          saveCompanyToSupabase(updated);
+                          return updated;
+                       }
+                       return c;
+                    });
+                    setCompanies(updatedCompanies);
+                    saveCompanies(updatedCompanies);
+                    setToast({ message: "Plano renovado por +30 dias!", type: 'success' });
+                  }}
+                  onChangePlan={async (companyId: string, currentPlan: string) => {
+                     const newPlan = prompt(`Plano atual: ${currentPlan}\nDigite o novo plano (Básico, Pro, Empresa):`);
+                     if (newPlan && ['Básico', 'Pro', 'Empresa'].includes(newPlan)) {
+                       const prices: Record<string, number> = { 'Básico': 199, 'Pro': 499, 'Empresa': 1200 };
+                       const updatedCompanies = companies.map(c => {
+                         if (c.id === companyId) {
+                           const updated = { ...c, plan: newPlan as 'Básico' | 'Pro' | 'Empresa', monthlyValue: prices[newPlan] };
+                           saveCompanyToSupabase(updated);
+                           return updated;
+                         }
+                         return c;
+                       });
+                       setCompanies(updatedCompanies);
+                       saveCompanies(updatedCompanies);
+                       setToast({ message: `Plano alterado para ${newPlan}!`, type: 'success' });
+                     }
+                  }}
                  onToggleUser={(userId: string, isActive: boolean) => {
                    updateUserActive(userId, isActive);
                    setAllUsers((prev: any[]) => prev.map((u: any) =>
@@ -1037,34 +1292,39 @@ setToast({ message: "Plano renovado por +30 dias!", type: 'success' });
                    ));
                    setToast({ message: isActive ? "Usuário ativado!" : "Usuário desativado!", type: 'success' });
                 }}
-                onDeleteUser={(userId: string) => {
-                   if (confirm('Tem certeza que deseja excluir este usuário?')) {
-                      try {
-                        const usersBefore = getAllUsers();
-                        const userToDelete = usersBefore.find((u: any) => u.id === userId);
-                        const companyIdToCheck = userToDelete?.companyId;
-                        
-                        const deleted = deleteUser(userId);
-                        if (!deleted) {
-                          setToast({ message: "Erro ao excluir usuário", type: 'error' });
-                          return;
-                        }
-                        
-                        const updatedUsers = getAllUsers();
-                        
-                        if (companyIdToCheck) {
-                          const remainingUsersInCompany = updatedUsers.filter((u: any) => u.companyId === companyIdToCheck);
-                          if (remainingUsersInCompany.length === 0) {
-                            deleteCompany(companyIdToCheck);
-                            deleteProjectsByCompany(companyIdToCheck);
-                          }
-                        }
-                        
-                        setToast({ message: "Usuário excluído! Atualizando...", type: 'success' });
-                        
-                        setTimeout(() => {
-                          window.location.reload();
-                        }, 1000);
+onDeleteUser={async (userId: string) => {
+                    if (confirm('Tem certeza que deseja excluir este usuário?')) {
+                       try {
+                         const usersBefore = getAllUsers();
+                         const userToDelete = usersBefore.find((u: any) => u.id === userId);
+                         const companyIdToCheck = userToDelete?.companyId;
+                         
+                         const deletedFromSupabase = await deleteUserFromSupabase(userId);
+                         if (!deletedFromSupabase) {
+                           setToast({ message: "Erro ao excluir usuário do Supabase", type: 'error' });
+                           return;
+                         }
+                         
+                         deleteUser(userId);
+                         
+                         const updatedUsers = getAllUsers().filter((u: any) => u.id !== userId);
+                         
+                         if (companyIdToCheck) {
+                           const remainingUsersInCompany = updatedUsers.filter((u: any) => u.companyId === companyIdToCheck);
+                           if (remainingUsersInCompany.length === 0) {
+                             deleteCompany(companyIdToCheck);
+                             deleteProjectsByCompany(companyIdToCheck);
+                           }
+                         }
+                         
+                         setAllUsers(updatedUsers);
+                        const updatedCompanies = loadCompanies();
+                        setCompanies(updatedCompanies.map((c: any) => ({
+                          ...c,
+                          plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
+                          billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED'
+                        })));
+                        setToast({ message: "Usuário excluído com sucesso!", type: 'success' });
                       } catch (error) {
                         console.error('Delete error:', error);
                         setToast({ message: "Erro ao processar exclusão", type: 'error' });
@@ -1098,12 +1358,30 @@ onRefresh={async () => {
                     }));
                     setCompanies(refreshedCompanies);
                     setAllUsers(refreshedUsers);
-                    setToast({ message: "Dados atualizados do Supabase!", type: 'success' });
-                 }}
+setToast({ message: "Dados atualizados do Supabase!", type: 'success' });
+                  }}
+                onSyncDatabase={async () => {
+                  try {
+                    const res = await fetch('/api/admin/migrate/sync-companies', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                      const supabaseCompanies = await loadCompaniesFromSupabase();
+                      setCompanies(supabaseCompanies);
+                      setToast({ message: data.message, type: 'success' });
+                    } else {
+                      setToast({ message: data.message || 'Erro ao sincronizar', type: 'error' });
+                    }
+                  } catch (err) {
+                    setToast({ message: 'Erro ao sincronizar com banco', type: 'error' });
+                  }
+                }}
                 onReset={() => {
                    if (confirm('ATENÇÃO: Isso vai excluir TODOS os dados (usuários, empresas, projetos). Continuar?')) {
                       resetToCleanState();
-                      window.location.reload();
+                      setCompanies([]);
+                      setAllProjects([]);
+                      setAllUsers([{ id: 'u_master', email: 'admin@obraflow.com', password: 'admin123', name: 'Kaique (Master)', role: 'SUPERADMIN', companyId: 'comp_saas', isActive: true }]);
+                      setToast({ message: "Sistema resetado com sucesso!", type: 'success' });
                    }
                 }}
               />
@@ -1644,7 +1922,7 @@ onRefresh={async () => {
 
 
 
-function AdminPanel({ companies, users, togglePause, impersonate, onRenew, onToggleUser, onDeleteUser, onRefresh, onReset, onChangePlan }: any) {
+function AdminPanel({ companies, users, togglePause, impersonate, onRenew, onToggleUser, onDeleteUser, onRefresh, onReset, onChangePlan, onSyncDatabase }: any) {
   const now = new Date();
   const expiringSoon = companies.filter((c: any) => {
     const startDate = c.planStartDate ? new Date(c.planStartDate) : new Date(c.createdAt);
@@ -1670,7 +1948,12 @@ function AdminPanel({ companies, users, togglePause, impersonate, onRenew, onTog
 
   return (
     <div className="space-y-10 animate-fade-in">
-       <div className="flex justify-end">
+       <div className="flex justify-end gap-3">
+         {onSyncDatabase && (
+           <button onClick={onSyncDatabase} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
+             <Database size={14} /> Sincronizar Banco
+           </button>
+         )}
          <button onClick={onReset} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
            <Trash2 size={14} /> Resetar Tudo
          </button>

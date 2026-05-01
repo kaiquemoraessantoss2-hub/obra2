@@ -41,6 +41,7 @@ enum Role {
   MASTER_OF_WORKS
   VIEWER
   CLIENT
+  SUPERADMIN
 }
 
 enum MaterialCategory {

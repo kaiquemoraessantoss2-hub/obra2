@@ -277,6 +277,44 @@ export function clearAllData(): void {
   localStorage.removeItem(GARGALOS_KEY);
 }
 
+export async function loadCompaniesFromSupabase(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/admin/companies');
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.companies || [];
+  } catch (err) {
+    console.error('Erro ao buscar companies do Supabase:', err);
+    return [];
+  }
+}
+
+export async function saveCompanyToSupabase(company: any): Promise<boolean> {
+  try {
+    const res = await fetch('/api/admin/companies', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(company)
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Erro ao salvar company no Supabase:', err);
+    return false;
+  }
+}
+
+export async function deleteUserFromSupabase(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/admin/users/delete?userId=${userId}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Erro ao excluir usuário do Supabase:', err);
+    return false;
+  }
+}
+
 export function resetToCleanState(): void {
   if (typeof window === 'undefined') return;
   
