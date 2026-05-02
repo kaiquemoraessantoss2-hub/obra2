@@ -352,29 +352,29 @@ export default function GlobalApplication() {
     }
   }, [toast]);
 
-  const handleLogin = (user: User, isNewUser = false) => {
+  const handleLogin = async (user: User, isNewUser = false) => {
     setCurrentUser(user);
     if (isNewUser) {
       const now = new Date();
       const expires = new Date();
       expires.setDate(now.getDate() + 30);
-      const newCompany: Company = { 
-        id: user.companyId, 
-        name: `Engenharia ${user.name}`, 
-        plan: 'Básico', 
-        monthlyValue: 199, 
-        planStartDate: now.toISOString(), 
-        planEndDate: expires.toISOString(), 
-        billingStatus: 'ACTIVE', 
-        isPaused: false, 
-        activeUsers: 1, 
-        createdAt: now.toISOString() 
+      const newCompany: Company = {
+        id: user.companyId,
+        name: `Engenharia ${user.name}`,
+        plan: 'Básico',
+        monthlyValue: 199,
+        planStartDate: now.toISOString(),
+        planEndDate: expires.toISOString(),
+        billingStatus: 'ACTIVE',
+        isPaused: false,
+        activeUsers: 1,
+        createdAt: now.toISOString()
       };
-      
+
       const updatedCompanies = [...companies, newCompany];
       setCompanies(updatedCompanies);
       saveCompany(newCompany as any);
-      
+
       const emptyProject: Project = {
         id: `p_${Date.now()}`,
         companyId: user.companyId,
@@ -393,6 +393,35 @@ export default function GlobalApplication() {
       setCurrentViewCompanyId(user.companyId);
     } else {
       setCurrentViewCompanyId(user.companyId);
+
+      // Re-fetch data after login so another device sees the correct saved state.
+      // loadInitialData runs before auth is established, so RLS returns empty on new devices.
+      const freshProjects = await loadProjects(user.companyId);
+      const typedProjects: Project[] = freshProjects.map((p: any) => ({
+        id: p.id || `proj_${Date.now()}`,
+        companyId: p.company_id || p.companyId || '',
+        name: p.name || 'Novo Projeto',
+        location: p.location || '',
+        totalFloors: p.totalFloors ?? p.total_floors ?? 1,
+        basements: p.basements ?? 0,
+        hasLeisure: p.hasLeisure ?? p.has_leisure ?? false,
+        hasAtrium: p.hasAtrium ?? p.has_atrium ?? false,
+        technicalAreas: p.technicalAreas ?? p.technical_areas ?? 0,
+        floors: [],
+        phases: []
+      }));
+      setAllProjects(typedProjects);
+
+      if (typedProjects.length > 0) {
+        const firstProject = typedProjects[0];
+        setActiveProjectId(firstProject.id || '');
+        setCurrentProjectIndex(0);
+        const savedPhases = await loadProjectPhases(firstProject.id || '');
+        setPhases(savedPhases || []);
+        const savedConfig = await loadProjectConfig(firstProject.id || '');
+        setBuildingConfig(savedConfig);
+        setShowEmptyPhaseState(!savedPhases || savedPhases.length === 0);
+      }
     }
     if (user.role === 'SUPERADMIN') setActiveTab('admin_dashboard');
     else { setActiveTab('dashboard'); }
