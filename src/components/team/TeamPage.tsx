@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Users, Settings, X, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Users, Settings, CheckCircle } from 'lucide-react';
 import {
   TeamMember,
   PLAN_LIMITS,
@@ -9,49 +9,35 @@ import {
   AccessLevel,
   PlanType,
 } from '@/types/plans';
+import { supabase } from '@/lib/supabase';
 import AddMemberModal from './AddMemberModal';
 import PermissionsModal from './PermissionsModal';
-
-const CREDENTIALS_KEY = 'member_credentials';
-
-function getStorageKey(ownerId: string): string {
-  return `owner_${ownerId}_team`;
-}
-
-function loadMembers(ownerId: string): TeamMember[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(getStorageKey(ownerId));
-  return stored ? JSON.parse(stored) : [];
-}
-
-function saveMembers(members: TeamMember[], ownerId: string): void {
-  localStorage.setItem(getStorageKey(ownerId), JSON.stringify(members));
-}
-
-function removeFromCredentials(email: string): void {
-  const key = 'member_credentials';
-  const existing = localStorage.getItem(key);
-  if (!existing) return;
-  const credentials = JSON.parse(existing);
-  const filtered = credentials.filter((c: { email: string }) => c.email !== email);
-  localStorage.setItem(key, JSON.stringify(filtered));
-}
 
 interface TeamPageProps {
   ownerId?: string;
   plan?: PlanType;
+  companyId?: string;
 }
 
-export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPageProps) {
+export default function TeamPage({ ownerId = 'default', plan = 'GOLD', companyId = '' }: TeamPageProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [toast, setToast] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setMembers(loadMembers(ownerId));
-  }, [ownerId]);
+  const loadMembers = async () => {
+    if (!companyId) return;
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('company_id', companyId);
+    if (!error && data) setMembers(data as unknown as TeamMember[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadMembers(); }, [companyId]);
 
   const { maxMembers, label: planLabel } = PLAN_LIMITS[plan];
   const currentCount = members.length;
@@ -63,22 +49,17 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
   };
 
   const handleAddMember = () => {
-    setMembers(loadMembers(ownerId));
+    loadMembers();
     setShowAddModal(false);
-    showToast(`✅ Acesso criado`);
+    showToast('✅ Acesso criado');
   };
 
-  const handleRemoveMember = (memberId: string) => {
+  const handleRemoveMember = async (memberId: string) => {
     const member = members.find(m => m.id === memberId);
-    if (!member) return;
-    
-    if (!confirm(`Remover ${member.name}?`)) return;
-    
-    const updated = members.filter(m => m.id !== memberId);
-    saveMembers(updated, ownerId);
-    removeFromCredentials(member.email);
-    setMembers(updated);
-    showToast(`Membro removido`);
+    if (!member || !confirm(`Remover ${member.name}?`)) return;
+    await supabase.auth.admin.deleteUser(memberId);
+    setMembers(prev => prev.filter(m => m.id !== memberId));
+    showToast('Membro removido');
   };
 
   const handleOpenPermModal = (member: TeamMember) => {
@@ -86,13 +67,10 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
     setShowPermModal(true);
   };
 
-  const handleSavePermissions = (memberId: string, permissions: Record<AppModule, AccessLevel>) => {
-    const updated = members.map(m => 
-      m.id === memberId ? { ...m, permissions } : m
-    );
-    saveMembers(updated, ownerId);
-    setMembers(updated);
-    showToast(`Permissões salvas`);
+  const handleSavePermissions = async (memberId: string, permissions: Record<AppModule, AccessLevel>) => {
+    await supabase.from('team_members').update({ permissions }).eq('id', memberId);
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, permissions } : m));
+    showToast('Permissões salvas');
   };
 
   return (
@@ -124,8 +102,8 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
         onClick={() => canAdd ? setShowAddModal(true) : undefined}
         disabled={!canAdd}
         className={`w-full py-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2 transition-colors ${
-          canAdd 
-            ? 'border-white/10 text-slate-500 hover:border-blue-500/50 hover:text-blue-400' 
+          canAdd
+            ? 'border-white/10 text-slate-500 hover:border-blue-500/50 hover:text-blue-400'
             : 'border-white/5 text-slate-600 cursor-not-allowed'
         }`}
       >
@@ -142,7 +120,7 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
             <p className="text-sm text-slate-600 mt-1">Clique acima para criar o primeiro acesso.</p>
           </div>
         )}
-        
+
         {members.map(member => (
           <div key={member.id} className="glass-card p-6 rounded-2xl flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -158,14 +136,14 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
               </div>
             </div>
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={() => handleOpenPermModal(member)}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:text-blue-400 rounded-xl transition-colors"
               >
                 <Settings size={16} />
                 Permissões
               </button>
-              <button 
+              <button
                 onClick={() => handleRemoveMember(member.id)}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:text-rose-400 rounded-xl transition-colors"
               >
@@ -180,15 +158,10 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD' }: TeamPag
       {/* Modal de adicionar membro */}
       <AddMemberModal
         isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setMembers(loadMembers(ownerId));
-        }}
+        onClose={() => setShowAddModal(false)}
         ownerId={ownerId}
-        onSuccess={() => {
-          setMembers(loadMembers(ownerId));
-          showToast('Acesso criado');
-        }}
+        companyId={companyId}
+        onSuccess={handleAddMember}
       />
 
       {/* Modal de permissões */}
