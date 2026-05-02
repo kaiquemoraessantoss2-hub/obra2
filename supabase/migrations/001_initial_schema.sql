@@ -221,7 +221,10 @@ CREATE POLICY "companies_delete" ON companies FOR DELETE
 CREATE POLICY "profiles_select" ON profiles FOR SELECT
   USING (is_superadmin() OR company_id = get_my_company_id() OR id = auth.uid());
 CREATE POLICY "profiles_insert" ON profiles FOR INSERT
-  WITH CHECK (is_superadmin() OR id = auth.uid());
+  WITH CHECK (
+    is_superadmin()
+    OR (id = auth.uid() AND role = 'VIEWER')
+  );
 CREATE POLICY "profiles_update" ON profiles FOR UPDATE
   USING (is_superadmin() OR id = auth.uid());
 CREATE POLICY "profiles_delete" ON profiles FOR DELETE
@@ -277,3 +280,38 @@ CREATE POLICY "pendencias_all" ON pendencias FOR ALL
     is_superadmin() OR
     project_id IN (SELECT id FROM projects WHERE company_id = get_my_company_id())
   );
+
+-- =====================
+-- INDEXES (foreign keys)
+-- =====================
+
+CREATE INDEX ON profiles(company_id);
+CREATE INDEX ON projects(company_id);
+CREATE INDEX ON floors(project_id);
+CREATE INDEX ON project_phases(project_id);
+CREATE INDEX ON building_configs(project_id);
+CREATE INDEX ON team_members(owner_id);
+CREATE INDEX ON team_members(company_id);
+CREATE INDEX ON calendar_events(company_id);
+CREATE INDEX ON calendar_events(created_by);
+CREATE INDEX ON gargalos(company_id);
+CREATE INDEX ON medicoes(project_id);
+CREATE INDEX ON pendencias(project_id);
+
+-- =====================
+-- AUTO-UPDATE updated_at
+-- =====================
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_projects_updated_at
+  BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_project_phases_updated_at
+  BEFORE UPDATE ON project_phases FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_building_configs_updated_at
+  BEFORE UPDATE ON building_configs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_gargalos_updated_at
+  BEFORE UPDATE ON gargalos FOR EACH ROW EXECUTE FUNCTION set_updated_at();
