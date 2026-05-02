@@ -5,7 +5,9 @@ import { FileText, Box, Layers, Building, Zap, Droplets, CheckCircle, Users, Shi
 import { ConstructionPhase } from '@/types';
 import { cn } from '@/lib/utils';
 
-const ICON_MAP: Record<string, any> = {
+import { LucideIcon } from 'lucide-react';
+
+const ICON_MAP: Record<string, LucideIcon> = {
   FileText, Box, Layers, Building, Zap, Droplets, CheckCircle, Users, Shield
 };
 

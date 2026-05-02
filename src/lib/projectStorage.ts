@@ -56,12 +56,12 @@ export async function loadProjectData(projectId: string): Promise<Project | null
     hasLeisure: p.has_leisure,
     hasAtrium: p.has_atrium,
     technicalAreas: p.technical_areas,
-    floors: (p.floors ?? []).map((f: any) => ({
-      id: f.id,
-      number: f.number,
-      label: f.label,
-      type: f.type,
-      phase: f.phase ?? '',
+    floors: (p.floors ?? []).map((f) => ({
+      id: f.id as string,
+      number: f.number as number,
+      label: f.label as string,
+      type: f.type as Floor['type'],
+      phase: f.phase as string,
       services: [],
     })),
   };

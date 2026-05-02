@@ -59,7 +59,7 @@ export default function SubStepEditRow({
     }
   }, [isEditing, subStep]);
 
-  const handleChange = (field: keyof SubStep, value: any) => {
+  const handleChange = (field: keyof SubStep, value: string | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

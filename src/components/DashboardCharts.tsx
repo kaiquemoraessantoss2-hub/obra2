@@ -14,9 +14,14 @@ import { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { loadGargalosByCompany } from '@/lib/auth';
 
+interface ChartDataPoint {
+  name: string;
+  progress: number;
+}
+
 interface DashboardChartsProps {
-  disciplineData: any[];
-  floorData: any[];
+  disciplineData: ChartDataPoint[];
+  floorData: ChartDataPoint[];
   companyId?: string;
 }
 

@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
+import { LucideIcon } from 'lucide-react';
 
 interface NavItemProps {
-  icon: React.ComponentType<any>;
+  icon: LucideIcon;
   label: string;
   active?: boolean;
   onClick?: () => void;

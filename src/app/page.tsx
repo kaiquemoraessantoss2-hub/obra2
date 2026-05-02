@@ -68,10 +68,10 @@ import BulkEditBar from '@/components/BulkEditBar';
 import ProjectSelectorBar from '@/components/ProjectSelectorBar';
 import EmptyPhaseState from '@/components/EmptyPhaseState';
 import { ModuleGuard, TeamPage, LoginPage, PendenciasSection, MedicaoObraSection } from '@/components/team';
-import { Floor, Status, Project, Company, User, BuildingConfig, ConstructionPhase, FloorExecution } from '@/types';
+import { Floor, Status, User, BuildingConfig, ConstructionPhase, FloorExecution } from '@/types';
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
 import { getProgressPercentage, cn } from '@/lib/utils';
-import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState } from '@/lib/auth';
+import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, Company, Project } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export default function GlobalApplication() {
@@ -141,7 +141,7 @@ export default function GlobalApplication() {
       ...ap,
       floors: (ap.floors || []).map(f => ({
         ...f,
-        services: (f.services || []).filter(s => s.name !== discName)
+        services: (f.services || []).filter((s: any) => s.name !== discName)
       }))
     } : ap));
     saveProjects(allProjects);
@@ -166,7 +166,7 @@ export default function GlobalApplication() {
       ...ap,
       floors: (ap.floors || []).map(f => f.id === floorId ? {
         ...f,
-        services: (f.services || []).filter(s => s.id !== serviceId)
+        services: (f.services || []).filter((s: any) => s.id !== serviceId)
       } : f)
     } : ap));
     saveProjects(allProjects);
@@ -185,8 +185,15 @@ export default function GlobalApplication() {
       
       const typedCompanies: Company[] = storedCompanies.map(c => ({
         ...c,
+        id: c.id || `local_${Date.now()}`,
         plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
-        billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED'
+        billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
+        monthlyValue: c.monthlyValue ?? 0,
+        planStartDate: c.planStartDate || new Date().toISOString(),
+        planEndDate: c.planEndDate || new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+        isPaused: c.isPaused ?? false,
+        activeUsers: c.activeUsers ?? 1,
+        createdAt: c.createdAt || new Date().toISOString()
       }));
       
       const now = new Date();
@@ -227,18 +234,31 @@ export default function GlobalApplication() {
       });
 
       setCompanies(mergedCompanies);
-      setAllProjects(storedProjects);
+      const typedProjects: Project[] = storedProjects.map((p: any) => ({
+        id: p.id || `proj_${Date.now()}`,
+        companyId: p.company_id || p.companyId || '',
+        name: p.name || 'Novo Projeto',
+        location: p.location || '',
+        totalFloors: p.totalFloors ?? p.total_floors ?? 1,
+        basements: p.basements ?? 0,
+        hasLeisure: p.hasLeisure ?? false,
+        hasAtrium: p.hasAtrium ?? false,
+        technicalAreas: p.technicalAreas ?? 0,
+        floors: [],
+        phases: []
+      }));
+      setAllProjects(typedProjects);
       setAllUsers(mergedUsers);
       setIsInitialized(true);
       
-      if (storedProjects.length > 0 && mergedCompanies.length > 0) {
-        setCurrentViewCompanyId(mergedCompanies[0].id);
-        const firstProject = storedProjects[0];
-        setActiveProjectId(firstProject.id);
+      if (typedProjects.length > 0 && mergedCompanies.length > 0) {
+        setCurrentViewCompanyId(mergedCompanies[0].id || '');
+        const firstProject = typedProjects[0];
+        setActiveProjectId(firstProject.id || '');
         setCurrentProjectIndex(0);
-        const savedPhases = await loadProjectPhases(firstProject.id);
+        const savedPhases = await loadProjectPhases(firstProject.id || '');
         setPhases(savedPhases || []);
-        const savedConfig = await loadProjectConfig(firstProject.id);
+        const savedConfig = await loadProjectConfig(firstProject.id || '');
         setBuildingConfig(savedConfig);
         if (savedPhases && savedPhases.length > 0) {
           setShowEmptyPhaseState(false);
@@ -301,7 +321,7 @@ export default function GlobalApplication() {
 
   useEffect(() => {
     if (isInitialized && companies.length > 0 && !currentViewCompanyId) {
-      setCurrentViewCompanyId(companies[0].id);
+      setCurrentViewCompanyId(companies[0].id || '');
     }
   }, [isInitialized, companies]);
 
@@ -353,7 +373,7 @@ export default function GlobalApplication() {
       
       const updatedCompanies = [...companies, newCompany];
       setCompanies(updatedCompanies);
-      saveCompany(newCompany);
+      saveCompany(newCompany as any);
       
       const emptyProject: Project = {
         id: `p_${Date.now()}`,
@@ -443,7 +463,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (lines.length <= 1) return;
       
       const dataLines = lines.slice(1);
-      const updatedFloors = [...project.floors];
+      const updatedFloors = [...(project.floors || [])];
       
       dataLines.forEach(line => {
         const parts = line.split(',');
@@ -452,9 +472,9 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         const serviceName = parts[1].trim();
         const status = parts[2].trim().toUpperCase().replace(' ', '_');
         
-        const floorIndex = updatedFloors.findIndex(f => f.number === floorNum);
+        const floorIndex = updatedFloors.findIndex((f: any) => f.number === floorNum);
         if (floorIndex >= 0) {
-          const svcIndex = updatedFloors[floorIndex].services.findIndex(s => s.name === serviceName);
+          const svcIndex = updatedFloors[floorIndex].services.findIndex((s: any) => s.name === serviceName);
           if (svcIndex >= 0) {
             updatedFloors[floorIndex].services[svcIndex].status = status as Status;
           }
@@ -509,8 +529,29 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBuildingConfig(config);
     if (activeProjectId) {
       saveProjectConfig(activeProjectId, config);
+      setToast({ message: "Prédio configurado!", type: 'success' });
+    } else {
+      const newProj: Project = {
+        id: `p_${Date.now()}`,
+        companyId: currentViewCompanyId,
+        name: config.name,
+        location: config.address,
+        totalFloors: config.totalFloors,
+        basements: config.basements,
+        hasLeisure: config.hasLeisure,
+        hasAtrium: config.hasAtrium,
+        technicalAreas: config.technicalAreas,
+        floors: config.floors,
+        phases: [],
+      };
+      const updatedProjects = [...allProjects, newProj];
+      setAllProjects(updatedProjects);
+      saveProjects(updatedProjects);
+      setCurrentProjectIndex(updatedProjects.length - 1);
+      setActiveProjectId(newProj.id);
+      saveProjectConfig(newProj.id, config);
+      setToast({ message: "Obra criada a partir do prédio!", type: 'success' });
     }
-    setToast({ message: "Prédio configurado!", type: 'success' });
   };
 
   const handleSaveFloor = (floor: Floor) => {
@@ -1423,7 +1464,7 @@ onRefresh={async () => {
                            }
                            let csv = "Fase,Peso(%),Progresso,Status,Inicio,Previsão Fim,Responsável,Sub-etapas Concluídas\n";
                            phases.forEach(p => {
-                             const subStepsConcluidas = p.subSteps.filter(s => s.status === 'COMPLETED').length;
+                             const subStepsConcluidas = p.subSteps.filter((s: any) => s.status === 'COMPLETED').length;
                              csv += `${p.name},${p.weight},${p.progress}%,${p.status.replace('_',' ')},${p.startDate || '-'},${p.endDate || '-'},${p.responsible || '-'},${subStepsConcluidas}/${p.subSteps.length}\n`;
                              p.subSteps.forEach(s => {
                                csv += `  - ${s.name},${s.progress}%,${s.status.replace('_',' ')},${s.responsible || '-'}\n`;
@@ -1438,11 +1479,11 @@ onRefresh={async () => {
                            const totalAndares = (project?.floors || []).length;
                            const andaresConcluidos = project?.floors.filter(f => f.services.every(s => s.status === 'COMPLETED')).length || 0;
                            const andaresEmObra = project?.floors.filter(f => f.services.some(s => s.status === 'IN_PROGRESS')).length || 0;
-                           const disciplinasConcluidas = project?.floors.reduce((acc, f) => acc + f.services.filter(s => s.status === 'COMPLETED').length, 0) || 0;
+                           const disciplinasConcluidas = project?.floors.reduce((acc, f) => acc + f.services.filter((s: any) => s.status === 'COMPLETED').length, 0) || 0;
                            const totalDisciplinas = project?.floors.reduce((acc, f) => acc + f.services.length, 0) || 0;
                            const fasesConcluidas = phases.filter(p => p.status === 'COMPLETED').length;
                            const fasesEmAndamento = phases.filter(p => p.status === 'IN_PROGRESS').length;
-                           const subStepsConcluidas = phases.reduce((acc, p) => acc + p.subSteps.filter(s => s.status === 'COMPLETED').length, 0);
+                           const subStepsConcluidas = phases.reduce((acc, p) => acc + p.subSteps.filter((s: any) => s.status === 'COMPLETED').length, 0);
                            const progressoGeral = phases.length > 0 ? Math.round(phases.reduce((acc, p) => acc + p.progress, 0) / phases.length) : 0;
                            
                            let csv = `RELATÓRIO GERAL DA OBRA\n`;
@@ -1460,7 +1501,7 @@ onRefresh={async () => {
                            csv += `\nDETALHAMENTO POR FASE\n`;
                            csv += `Fase,Peso,Progresso,Status,Sub-etapas,Responsável\n`;
                            phases.forEach(p => {
-                             csv += `${p.name},${p.weight}%,${p.progress}%,${p.status},${p.subSteps.filter(s => s.status === 'COMPLETED').length}/${p.subSteps.length},${p.responsible || '-'}\n`;
+                             csv += `${p.name},${p.weight}%,${p.progress}%,${p.status},${p.subSteps.filter((s: any) => s.status === 'COMPLETED').length}/${p.subSteps.length},${p.responsible || '-'}\n`;
                            });
                            csv += `\nDETALHAMENTO POR ANDAR\n`;
                            csv += `Andar,Tipo,Elétrica,Hidráulica,Alvenaria,Revestimento\n`;

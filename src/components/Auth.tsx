@@ -99,16 +99,17 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
           }
         }
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Falha na rede';
       console.error('Erro de Autenticação:', err);
-      setError(`Erro de conexão: ${err.message || 'Falha na rede'}`);
+      setError(`Erro de conexão: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   if (showMemberLogin) {
-    return <LoginPage onLogin={(member: any) => { 
+    return <LoginPage onLogin={(member: unknown) => { 
       window.location.href = '?member=' + encodeURIComponent(JSON.stringify(member));
     }} />;
   }

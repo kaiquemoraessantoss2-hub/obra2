@@ -11,6 +11,77 @@ export interface StoredUser {
   isActive?: boolean;
 }
 
+export interface Company {
+  id?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  plan?: string;
+  monthlyValue?: number;
+  planStartDate?: string;
+  planEndDate?: string;
+  billingStatus?: string;
+  isPaused?: boolean;
+  activeUsers?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Project {
+  id?: string;
+  name: string;
+  location?: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  totalFloors?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  companyId?: string;
+  company_id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  basements?: number;
+  hasLeisure?: boolean;
+  hasAtrium?: boolean;
+  technicalAreas?: number;
+  floors?: any[];
+  phases?: any[];
+}
+
+export interface TeamMember {
+  id?: string;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string;
+  permissions?: Record<string, boolean>;
+  isActive?: boolean;
+  company_id?: string;
+}
+
+export interface CalendarEvent {
+  id?: string;
+  title: string;
+  date: string;
+  type: string;
+  description?: string;
+  projectId?: string;
+  company_id?: string;
+}
+
+export interface Gargalo {
+  id?: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  createdAt?: string;
+  company_id?: string;
+}
+
 // =====================
 // AUTH
 // =====================
@@ -141,13 +212,13 @@ export async function loadUserProfilesFromSupabase(): Promise<StoredUser[]> {
 // COMPANIES
 // =====================
 
-export async function loadCompanies(): Promise<any[]> {
+export async function loadCompanies(): Promise<Company[]> {
   const { data, error } = await supabase.from('companies').select('*');
   if (error) return [];
   return data ?? [];
 }
 
-export async function saveCompany(company: any): Promise<void> {
+export async function saveCompany(company: Company): Promise<void> {
   const { id, ...rest } = company;
   if (id) {
     await supabase.from('companies').upsert({ id, ...rest });
@@ -156,7 +227,7 @@ export async function saveCompany(company: any): Promise<void> {
   }
 }
 
-export async function saveCompanies(companies: any[]): Promise<void> {
+export async function saveCompanies(companies: Company[]): Promise<void> {
   for (const company of companies) {
     await saveCompany(company);
   }
@@ -171,7 +242,7 @@ export async function deleteCompany(companyId: string): Promise<boolean> {
 // PROJECTS
 // =====================
 
-export async function loadProjects(companyId?: string): Promise<any[]> {
+export async function loadProjects(companyId?: string): Promise<Project[]> {
   let query = supabase.from('projects').select('*');
   if (companyId) query = query.eq('company_id', companyId);
   const { data, error } = await query;
@@ -179,9 +250,9 @@ export async function loadProjects(companyId?: string): Promise<any[]> {
   return data ?? [];
 }
 
-export async function saveProject(project: any): Promise<void> {
-  const { id, companyId, ...rest } = project;
-  const record = { ...rest, company_id: companyId ?? rest.company_id };
+export async function saveProject(project: Project): Promise<void> {
+  const { id, company_id, ...rest } = project;
+  const record = { ...rest, company_id: company_id ?? rest.company_id };
   if (id) {
     await supabase.from('projects').upsert({ id, ...record });
   } else {
@@ -189,7 +260,7 @@ export async function saveProject(project: any): Promise<void> {
   }
 }
 
-export async function saveProjects(projects: any[]): Promise<void> {
+export async function saveProjects(projects: Project[]): Promise<void> {
   for (const project of projects) {
     await saveProject(project);
   }
@@ -204,7 +275,7 @@ export async function deleteProjectsByCompany(companyId: string): Promise<boolea
 // TEAM
 // =====================
 
-export async function loadTeamByCompany(companyId: string): Promise<any[]> {
+export async function loadTeamByCompany(companyId: string): Promise<TeamMember[]> {
   const { data, error } = await supabase
     .from('team_members')
     .select('*')
@@ -213,7 +284,7 @@ export async function loadTeamByCompany(companyId: string): Promise<any[]> {
   return data ?? [];
 }
 
-export async function saveTeamByCompany(companyId: string, team: any[]): Promise<void> {
+export async function saveTeamByCompany(companyId: string, team: TeamMember[]): Promise<void> {
   for (const member of team) {
     await supabase.from('team_members').upsert({ ...member, company_id: companyId });
   }
@@ -223,7 +294,7 @@ export async function saveTeamByCompany(companyId: string, team: any[]): Promise
 // CALENDAR
 // =====================
 
-export async function loadCalendarEvents(companyId: string): Promise<any[]> {
+export async function loadCalendarEvents(companyId: string): Promise<CalendarEvent[]> {
   const { data, error } = await supabase
     .from('calendar_events')
     .select('*')
@@ -233,7 +304,7 @@ export async function loadCalendarEvents(companyId: string): Promise<any[]> {
   return data ?? [];
 }
 
-export async function saveCalendarEvents(companyId: string, events: any[]): Promise<void> {
+export async function saveCalendarEvents(companyId: string, events: CalendarEvent[]): Promise<void> {
   await supabase.from('calendar_events').delete().eq('company_id', companyId);
   if (events.length > 0) {
     await supabase.from('calendar_events').insert(

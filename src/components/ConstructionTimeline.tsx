@@ -3,13 +3,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, Box, Layers, Building, Zap, Droplets, CheckCircle, Users, Shield, 
-  Calendar, User as UserIcon, AlertCircle, BarChart3, Plus, Pencil, RotateCcw, X, Check, ChevronLeft, ChevronRight, Trash2
+  Plus, Pencil, RotateCcw, X, Check, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import { ConstructionPhase, SubStep, Status } from '../types';
 import { cn } from '../lib/utils';
-import { useConstruction } from '../context/ConstructionContext';
 
-const ICON_MAP: Record<string, any> = {
+type LucideIcon = React.ComponentType<{ className?: string }>;
+
+const ICON_MAP: Record<string, LucideIcon> = {
   FileText, Box, Layers, Building, Zap, Droplets, CheckCircle, Users, Shield
 };
 
@@ -51,15 +52,12 @@ interface ConstructionTimelineProps {
 
 export default function ConstructionTimeline({ phases: initialPhases, onUpdatePhase, onAddPhase, onRemovePhase }: ConstructionTimelineProps) {
   const [phases, setPhases] = useState<ConstructionPhase[]>(initialPhases || []);
-  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(initialPhases && initialPhases.length > 0 ? initialPhases[0].id : null);
   const [showAddPhase, setShowAddPhase] = useState(false);
 
   useEffect(() => {
     if (initialPhases && initialPhases.length > 0) {
       setPhases(initialPhases);
-      if (!selectedPhaseId) {
-        setSelectedPhaseId(initialPhases[0].id);
-      }
     }
   }, [initialPhases]);
 
@@ -824,17 +822,24 @@ function AddSubStepInlineForm({ phaseId, onClose, onAdd }: { phaseId: string; on
 function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase: ConstructionPhase) => void }) {
   const icons = ['FileText', 'Box', 'Layers', 'Building', 'Zap', 'Droplets', 'CheckCircle', 'Users', 'Shield'];
   const colors = ['bg-blue-500', 'bg-amber-600', 'bg-indigo-500', 'bg-orange-500', 'bg-cyan-500', 'bg-rose-500', 'bg-teal-500', 'bg-emerald-500', 'bg-violet-500', 'bg-slate-700'];
-  const today = new Date().toISOString().split('T')[0];
-  const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   
-  const [FormData, setFormData] = useState({
-    name: '',
-    icon: 'Box',
-    color: 'bg-blue-500',
-    weight: 10,
-    responsible: '',
-    startDate: today,
-    endDate: thirtyDaysLater,
+  const getInitialDates = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return { today, thirtyDaysLater };
+  };
+  
+  const [formData, setFormData] = useState(() => {
+    const { today, thirtyDaysLater } = getInitialDates();
+    return {
+      name: '',
+      icon: 'Box',
+      color: 'bg-blue-500',
+      weight: 10,
+      responsible: '',
+      startDate: today,
+      endDate: thirtyDaysLater,
+    };
   });
 
   return (

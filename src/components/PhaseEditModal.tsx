@@ -20,34 +20,38 @@ const STATUS_OPTIONS: { value: Status; label: string; color: string }[] = [
   { value: 'BLOCKED', label: 'Bloqueado', color: 'text-rose-500' },
 ];
 
+function getInitialFormData(p: ConstructionPhase): Partial<ConstructionPhase> {
+  return {
+    name: p.name,
+    weight: p.weight,
+    progress: p.progress,
+    status: p.status,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    actualEndDate: p.actualEndDate,
+    responsible: p.responsible,
+    observations: p.observations || '',
+  };
+}
+
 export default function PhaseEditModal({ phase, isOpen, onClose }: PhaseEditModalProps) {
   const { updatePhase, calculateOverallProgress } = useConstruction();
   
-  const [formData, setFormData] = useState<Partial<ConstructionPhase>>({});
+  const [formData, setFormData] = useState<Partial<ConstructionPhase>>(() => getInitialFormData(phase));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        name: phase.name,
-        weight: phase.weight,
-        progress: phase.progress,
-        status: phase.status,
-        startDate: phase.startDate,
-        endDate: phase.endDate,
-        actualEndDate: phase.actualEndDate,
-        responsible: phase.responsible,
-        observations: phase.observations || '',
-      });
+      setFormData(getInitialFormData(phase));
       setHasChanges(false);
       setErrors({});
       setShowCompletionPrompt(false);
     }
   }, [isOpen, phase]);
 
-  const handleChange = (field: keyof ConstructionPhase, value: any) => {
+  const handleChange = (field: keyof ConstructionPhase, value: string | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setHasChanges(true);
     

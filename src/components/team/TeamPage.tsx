@@ -57,9 +57,29 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD', companyId
   const handleRemoveMember = async (memberId: string) => {
     const member = members.find(m => m.id === memberId);
     if (!member || !confirm(`Remover ${member.name}?`)) return;
-    await supabase.auth.admin.deleteUser(memberId);
-    setMembers(prev => prev.filter(m => m.id !== memberId));
-    showToast('Membro removido');
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      showToast('Sessão expirada. Faça login novamente.');
+      return;
+    }
+
+    const response = await fetch('/api/admin/members', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ memberId }),
+    });
+
+    if (response.ok) {
+      setMembers(prev => prev.filter(m => m.id !== memberId));
+      showToast('Membro removido');
+    } else {
+      const result = await response.json();
+      showToast(`Erro: ${result.error ?? 'Falha ao remover membro'}`);
+    }
   };
 
   const handleOpenPermModal = (member: TeamMember) => {

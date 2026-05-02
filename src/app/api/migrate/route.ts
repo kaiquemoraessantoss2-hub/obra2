@@ -80,8 +80,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, message: 'Migração concluída com sucesso!' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro na migração:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

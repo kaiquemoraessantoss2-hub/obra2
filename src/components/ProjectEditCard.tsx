@@ -27,7 +27,9 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
   const [showFloorEdit, setShowFloorEdit] = useState(false);
   const floors = project.floors || [];
 
-  const handleChange = (field: string, value: any) => {
+  type EditableField = string | number | boolean;
+
+  const handleChange = (field: string, value: EditableField) => {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
 

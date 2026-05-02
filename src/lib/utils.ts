@@ -13,7 +13,9 @@ export function getStatusColor(status: string) {
   }
 }
 
-export function getProgressPercentage(services: any[] | undefined | null) {
+import { Service } from '@/types';
+
+export function getProgressPercentage(services: Service[] | undefined | null) {
   if (!services || services.length === 0) return 0;
   const completed = services.filter(s => s.status === 'COMPLETED').length;
   const inProgress = services.filter(s => s.status === 'IN_PROGRESS').length;

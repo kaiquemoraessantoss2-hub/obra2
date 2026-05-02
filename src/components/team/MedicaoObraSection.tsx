@@ -356,7 +356,7 @@ export default function MedicaoObraSection({
 
       {filteredMedicoes.length === 0 ? (
         <div className="text-center py-8 text-slate-500">
-          Nenhuma medição ainda. Clique em "Novo" para adicionar.
+          Nenhuma medição ainda. Clique em &quot;Novo&quot; para adicionar.
         </div>
       ) : (
         <div className="overflow-x-auto">

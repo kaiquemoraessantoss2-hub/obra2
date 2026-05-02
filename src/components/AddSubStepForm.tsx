@@ -34,7 +34,7 @@ export default function AddSubStepForm({ phaseId, onCancel }: AddSubStepFormProp
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleChange = (field: keyof SubStep, value: any) => {
+  const handleChange = (field: keyof SubStep, value: string | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => ({ ...prev, [field]: '' }));
   };

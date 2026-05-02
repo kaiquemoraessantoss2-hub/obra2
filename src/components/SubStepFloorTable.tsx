@@ -39,16 +39,15 @@ export default function SubStepFloorTable({ subStep, onUpdateFloorExecution }: S
 
   const handleSaveEdit = (floorId: string) => {
     if (onUpdateFloorExecution && subStep.floorExecutions) {
-      const updatedExecutions = subStep.floorExecutions.map(fe => 
-        fe.floorId === floorId 
-          ? { 
-              ...fe, 
-              measuredQuantity: editValues.quantity ? parseFloat(editValues.quantity) : undefined,
-              observations: editValues.observations || undefined 
-            } 
-          : fe
-      );
-      onUpdateFloorExecution(subStep.id, updatedExecutions[0] as any);
+      const executionToUpdate = subStep.floorExecutions.find(fe => fe.floorId === floorId);
+      if (executionToUpdate) {
+        const updatedExecution: FloorExecution = {
+          ...executionToUpdate,
+          measuredQuantity: editValues.quantity ? parseFloat(editValues.quantity) : undefined,
+          observations: editValues.observations || undefined,
+        };
+        onUpdateFloorExecution(subStep.id, updatedExecution);
+      }
     }
     setEditingFloor(null);
   };

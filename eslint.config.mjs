@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Allow any for migration/compatibility
+      "@typescript-eslint/no-explicit-any": "warn",
+      // Allow setState in useEffect for initialization
+      "react-hooks/set-state-in-effect": "warn",
+      // Allow Date.now() in component for IDs
+      "react-hooks/purity": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

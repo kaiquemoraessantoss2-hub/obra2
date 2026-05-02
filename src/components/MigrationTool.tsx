@@ -4,6 +4,23 @@ import React, { useState } from 'react';
 import { Database, CloudUpload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+interface CompanyData {
+  id: string;
+  name: string;
+  plan: string;
+  billingStatus: string;
+}
+
+interface ProjectData {
+  id: string;
+  name: string;
+  location: string;
+  totalFloors: number;
+  basements: number;
+  companyId: string;
+  floors: { id: string; number: number; label: string; type: string }[];
+}
+
 export default function MigrationTool() {
   const [status, setStatus] = useState<'idle' | 'migrating' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -13,10 +30,8 @@ export default function MigrationTool() {
     setMessage('Verificando dados locais...');
 
     try {
-      // Migration is complete — all data now lives in Supabase.
-      // There are no longer any localStorage keys to read.
-      const companies: any[] = [];
-      const enrichedProjects: any[] = [];
+      const companies: CompanyData[] = [];
+      const enrichedProjects: ProjectData[] = [];
 
       setMessage('Enviando dados para o Supabase...');
 
@@ -37,9 +52,10 @@ export default function MigrationTool() {
       } else {
         throw new Error(result.error || 'Falha na migração');
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
       setStatus('error');
-      setMessage(`Erro: ${err.message}`);
+      setMessage(`Erro: ${errorMessage}`);
     }
   };
 

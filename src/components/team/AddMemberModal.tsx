@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { TeamMember, DEFAULT_PERMISSIONS } from '@/types/plans';
+import { TeamMember } from '@/types/plans';
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -20,29 +20,25 @@ async function createMemberInSupabase(
   ownerId: string,
   companyId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    user_metadata: { name, role: 'VIEWER', company_id: companyId },
-    email_confirm: true,
-  });
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (error || !data.user) {
-    return { success: false, error: error?.message ?? 'Erro ao criar usuário' };
+  if (!session?.access_token) {
+    return { success: false, error: 'Sessão expirada. Faça login novamente.' };
   }
 
-  const { error: memberError } = await supabase.from('team_members').insert({
-    id: data.user.id,
-    owner_id: ownerId,
-    company_id: companyId,
-    name,
-    email,
-    permissions: DEFAULT_PERMISSIONS,
-    is_active: true,
+  const response = await fetch('/api/admin/members', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ name, email, password, ownerId, companyId }),
   });
 
-  if (memberError) {
-    return { success: false, error: memberError.message };
+  const result = await response.json();
+
+  if (!response.ok) {
+    return { success: false, error: result.error ?? 'Erro ao criar usuário' };
   }
 
   return { success: true };

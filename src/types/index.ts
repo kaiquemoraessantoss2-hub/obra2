@@ -113,29 +113,34 @@ export interface Floor {
 
 export interface Project {
   id: string;
-  companyId: string;
+  companyId?: string;
+  company_id?: string;
   name: string;
-  location: string;
-  totalFloors: number;
-  basements: number;
-  hasLeisure: boolean;
-  hasAtrium: boolean;
-  technicalAreas: number;
-  floors: Floor[];
+  location?: string;
+  totalFloors?: number;
+  basements?: number;
+  hasLeisure?: boolean;
+  hasAtrium?: boolean;
+  technicalAreas?: number;
+  floors?: Floor[];
   phases?: ConstructionPhase[];
 }
 
 export interface Company {
   id: string;
   name: string;
-  plan: 'Básico' | 'Pro' | 'Empresa';
-  monthlyValue: number;
-  planStartDate: string;
-  planEndDate: string;
-  billingStatus: 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED';
-  isPaused: boolean;
-  activeUsers: number;
-  createdAt: string;
+  email?: string;
+  plan?: 'Básico' | 'Pro' | 'Empresa';
+  monthlyValue?: number;
+  planStartDate?: string;
+  planEndDate?: string;
+  billingStatus?: 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED';
+  isPaused?: boolean;
+  activeUsers?: number;
+  createdAt?: string;
+  phone?: string;
+  address?: string;
+  updatedAt?: string;
 }
 
 export interface User {

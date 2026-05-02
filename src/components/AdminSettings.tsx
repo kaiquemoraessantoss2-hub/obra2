@@ -21,7 +21,12 @@ export default function AdminSettings({ currentUser, onUpdateUser }: Props) {
     setLoadingUsers(true);
     try {
       const data = await loadUserProfilesFromSupabase();
-      const mapped: UserType[] = data.map((u: any) => ({
+      const mapped: UserType[] = data.map((u) => ({
+        id: (u as Record<string, unknown>).id as string,
+        email: (u as Record<string, unknown>).email as string,
+        name: ((u as Record<string, unknown>).name as string) || ((u as Record<string, unknown>).email as string),
+        role: ((u as Record<string, unknown>).role as UserType['role']) || 'ADMIN',
+        companyId: ((u as Record<string, unknown>).companyId as string) || '',
         id: u.id,
         email: u.email,
         name: u.name || u.email,
@@ -340,8 +345,9 @@ function UsersSection({ users, loading, onAdd, onDelete }: { users: UserType[]; 
       onAdd();
       setNewUser({ name: '', email: '', role: 'ENGINEER', companyId: '', password: '' });
       setShowAddForm(false);
-    } catch (err: any) {
-      alert(`Erro: ${err.message}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      alert(`Erro: ${errorMessage}`);
     }
   };
 
@@ -379,7 +385,7 @@ function UsersSection({ users, loading, onAdd, onDelete }: { users: UserType[]; 
             />
             <select
               value={newUser.role}
-              onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as any }))}
+              onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as UserType['role'] }))}
               className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
             >
               <option value="ENGINEER">Engenheiro</option>
