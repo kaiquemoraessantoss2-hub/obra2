@@ -22,8 +22,7 @@ export default function ConstructionCalendar({ companyId }: Props) {
   const [newEvent, setNewEvent] = useState({ title: '', type: 'TASK' as 'DELIVERY' | 'TASK', day: 1, time: '08:00' });
 
   useEffect(() => {
-    const storedEvents = loadCalendarEvents(companyId);
-    setEvents(storedEvents);
+    loadCalendarEvents(companyId).then(setEvents);
   }, [companyId]);
 
   const handleSaveEvents = (newEvents: CalendarEvent[]) => {

@@ -5,303 +5,271 @@ import { supabase } from './supabase';
 export interface StoredUser {
   id: string;
   email: string;
-  password: string;
   name: string;
   role: 'SUPERADMIN' | 'ADMIN' | 'ENGINEER' | 'VIEWER';
   companyId: string;
   isActive?: boolean;
 }
 
-const USERS_KEY = 'obraflow_users';
-const COMPANIES_KEY = 'obraflow_companies';
-const PROJECTS_KEY = 'obraflow_projects';
-const TEAMS_KEY = 'obraflow_teams';
-const CALENDAR_KEY = 'obraflow_calendar';
+// =====================
+// AUTH
+// =====================
 
-export function loadTeamByCompany(companyId: string): any[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(`${TEAMS_KEY}_${companyId}`);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
+export async function signIn(email: string, password: string): Promise<StoredUser | null> {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.user) return null;
 
-export function saveTeamByCompany(companyId: string, team: any[]): void {
-  localStorage.setItem(`${TEAMS_KEY}_${companyId}`, JSON.stringify(team));
-}
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, name, role, company_id, is_active')
+    .eq('id', data.user.id)
+    .single();
 
-export function loadCalendarEvents(companyId: string): any[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(`${CALENDAR_KEY}_${companyId}`);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
+  if (!profile) return null;
 
-export function saveCalendarEvents(companyId: string, events: any[]): void {
-  localStorage.setItem(`${CALENDAR_KEY}_${companyId}`, JSON.stringify(events));
-}
-
-const GARGALOS_KEY = 'obraflow_gargalos';
-
-export function loadGargalosByCompany(companyId: string): any[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(`${GARGALOS_KEY}_${companyId}`);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-export function saveGargalosByCompany(companyId: string, gargalos: any[]): void {
-  localStorage.setItem(`${GARGALOS_KEY}_${companyId}`, JSON.stringify(gargalos));
-}
-
-export function updateUserActive(userId: string, isActive: boolean): boolean {
-  try {
-    const users = loadUsers();
-    const userIndex = users.findIndex(u => u.id === userId);
-    if (userIndex >= 0) {
-      (users[userIndex] as any).isActive = isActive;
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-export function deleteUser(userId: string): boolean {
-  try {
-    const users = loadUsers();
-    const userToDelete = users.find(u => u.id === userId);
-    const filteredUsers = users.filter(u => u.id !== userId);
-    localStorage.setItem(USERS_KEY, JSON.stringify(filteredUsers));
-    
-    if (userToDelete) {
-      const remainingUsersInCompany = filteredUsers.filter(u => u.companyId === userToDelete.companyId);
-      if (remainingUsersInCompany.length === 0) {
-        const companies = loadCompanies();
-        const filteredCompanies = companies.filter(c => c.id !== userToDelete.companyId);
-        localStorage.setItem(COMPANIES_KEY, JSON.stringify(filteredCompanies));
-        
-        const projects = loadProjects();
-        const filteredProjects = projects.filter(p => p.companyId !== userToDelete.companyId);
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(filteredProjects));
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function getAllUsers(): StoredUser[] {
-  return loadUsers();
-}
-
-export const defaultUsers: StoredUser[] = [
-  {
-    id: 'u_master',
-    email: 'admin@obraflow.com',
-    password: 'admin123',
-    name: 'Kaique (Master)',
-    role: 'SUPERADMIN',
-    companyId: 'comp_saas'
-  }
-];
-
-export const defaultCompanies: any[] = [];
-
-export function loadUsers(): StoredUser[] {
-  if (typeof window === 'undefined') return defaultUsers;
-  const stored = localStorage.getItem(USERS_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return defaultUsers;
-    }
-  }
-  localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
-  return defaultUsers;
-}
-
-export function saveUser(user: StoredUser): boolean {
-  try {
-    const users = loadUsers();
-    users.push(user);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    return true;
-  } catch (error) {
-    console.error('Failed to save user:', error);
-    return false;
-  }
-}
-
-export function validateUser(email: string, password: string): StoredUser | null {
-  const users = loadUsers();
-  return users.find(u => u.email === email && u.password === password) || null;
-}
-
-export function getUserByEmail(email: string): StoredUser | undefined {
-  const users = loadUsers();
-  return users.find(u => u.email === email);
-}
-
-export function loadCompanies(): any[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(COMPANIES_KEY);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      return parsed;
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-export async function loadUserProfilesFromSupabase(): Promise<any[]> {
-  try {
-    const res = await fetch('/api/admin/users');
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.users || [];
-  } catch (err) {
-    console.error('Erro ao buscar usuários do Auth:', err);
-    return [];
-  }
-}
-
-
-
-export function saveCompany(company: any): void {
-  const companies = loadCompanies();
-  companies.push(company);
-  localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies));
-}
-
-export function loadProjects(): any[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(PROJECTS_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-export function initializeDefaultData(): void {
-  if (typeof window === 'undefined') return;
-}
-
-export function saveProject(project: any): void {
-  const projects = loadProjects();
-  const existingIndex = projects.findIndex(p => p.id === project.id);
-  if (existingIndex >= 0) {
-    projects[existingIndex] = project;
-  } else {
-    projects.push(project);
-  }
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
-}
-
-export function saveProjects(projects: any[]): void {
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
-}
-
-export function saveCompanies(companies: any[]): void {
-  localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies));
-}
-
-export function updateUserPassword(email: string, newPassword: string): boolean {
-  const users = loadUsers();
-  const userIndex = users.findIndex(u => u.email === email);
-  if (userIndex >= 0) {
-    users[userIndex].password = newPassword;
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    return true;
-  }
-  return false;
-}
-
-export function deleteCompany(companyId: string): boolean {
-  try {
-    const companies = loadCompanies();
-    const filtered = companies.filter(c => c.id !== companyId);
-    localStorage.setItem(COMPANIES_KEY, JSON.stringify(filtered));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function deleteProjectsByCompany(companyId: string): boolean {
-  try {
-    const projects = loadProjects();
-    const filtered = projects.filter(p => p.companyId !== companyId);
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(filtered));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function clearAllData(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(USERS_KEY);
-  localStorage.removeItem(COMPANIES_KEY);
-  localStorage.removeItem(PROJECTS_KEY);
-  localStorage.removeItem(TEAMS_KEY);
-  localStorage.removeItem(CALENDAR_KEY);
-  localStorage.removeItem(GARGALOS_KEY);
-}
-
-export function resetToCleanState(): void {
-  if (typeof window === 'undefined') return;
-  
-  // Keep only the master admin user
-  const masterUser = {
-    id: 'u_master',
-    email: 'admin@obraflow.com',
-    password: 'admin123',
-    name: 'Kaique (Master)',
-    role: 'SUPERADMIN' as const,
-    companyId: 'comp_saas',
-    isActive: true
+  return {
+    id: profile.id,
+    email: data.user.email!,
+    name: profile.name,
+    role: profile.role as StoredUser['role'],
+    companyId: profile.company_id,
+    isActive: profile.is_active,
   };
-  
-  localStorage.setItem(USERS_KEY, JSON.stringify([masterUser]));
-  localStorage.setItem(COMPANIES_KEY, JSON.stringify([]));
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify([]));
-  
-  // Clear team/calendar/gargalos for any company
-  const keysToRemove: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (key.startsWith('obraflow_teams_') || key.startsWith('obraflow_calendar_') || key.startsWith('obraflow_gargalos_'))) {
-      keysToRemove.push(key);
-    }
-  }
-  keysToRemove.forEach(key => localStorage.removeItem(key));
 }
+
+export async function signOut(): Promise<void> {
+  await supabase.auth.signOut();
+}
+
+export async function getCurrentUser(): Promise<StoredUser | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, name, role, company_id, is_active')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile) return null;
+
+  return {
+    id: profile.id,
+    email: user.email!,
+    name: profile.name,
+    role: profile.role as StoredUser['role'],
+    companyId: profile.company_id,
+    isActive: profile.is_active,
+  };
+}
+
+// =====================
+// USERS
+// =====================
+
+export async function getAllUsers(): Promise<StoredUser[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, role, company_id, is_active');
+  if (error || !data) return [];
+  return data.map(p => ({
+    id: p.id,
+    email: '',
+    name: p.name,
+    role: p.role as StoredUser['role'],
+    companyId: p.company_id,
+    isActive: p.is_active,
+  }));
+}
+
+export async function saveUser(user: Omit<StoredUser, 'id'> & { password: string }): Promise<StoredUser | null> {
+  const { data, error } = await supabase.auth.admin.createUser({
+    email: user.email,
+    password: user.password,
+    user_metadata: {
+      name: user.name,
+      role: user.role,
+      company_id: user.companyId,
+    },
+    email_confirm: true,
+  });
+
+  if (error || !data.user) {
+    console.error('Erro ao criar usuário:', error);
+    return null;
+  }
+
+  await supabase.from('profiles').update({
+    company_id: user.companyId,
+    role: user.role,
+    is_active: user.isActive ?? true,
+  }).eq('id', data.user.id);
+
+  return {
+    id: data.user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    companyId: user.companyId,
+    isActive: user.isActive ?? true,
+  };
+}
+
+export async function updateUserActive(userId: string, isActive: boolean): Promise<boolean> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_active: isActive })
+    .eq('id', userId);
+  return !error;
+}
+
+export async function deleteUser(userId: string): Promise<boolean> {
+  const { error } = await supabase.auth.admin.deleteUser(userId);
+  return !error;
+}
+
+export async function updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
+  const { error } = await supabase.auth.admin.updateUserById(userId, { password: newPassword });
+  return !error;
+}
+
+export async function loadUserProfilesFromSupabase(): Promise<StoredUser[]> {
+  return getAllUsers();
+}
+
+// =====================
+// COMPANIES
+// =====================
+
+export async function loadCompanies(): Promise<any[]> {
+  const { data, error } = await supabase.from('companies').select('*');
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function saveCompany(company: any): Promise<void> {
+  const { id, ...rest } = company;
+  if (id) {
+    await supabase.from('companies').upsert({ id, ...rest });
+  } else {
+    await supabase.from('companies').insert(rest);
+  }
+}
+
+export async function saveCompanies(companies: any[]): Promise<void> {
+  for (const company of companies) {
+    await saveCompany(company);
+  }
+}
+
+export async function deleteCompany(companyId: string): Promise<boolean> {
+  const { error } = await supabase.from('companies').delete().eq('id', companyId);
+  return !error;
+}
+
+// =====================
+// PROJECTS
+// =====================
+
+export async function loadProjects(companyId?: string): Promise<any[]> {
+  let query = supabase.from('projects').select('*');
+  if (companyId) query = query.eq('company_id', companyId);
+  const { data, error } = await query;
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function saveProject(project: any): Promise<void> {
+  const { id, companyId, ...rest } = project;
+  const record = { ...rest, company_id: companyId ?? rest.company_id };
+  if (id) {
+    await supabase.from('projects').upsert({ id, ...record });
+  } else {
+    await supabase.from('projects').insert(record);
+  }
+}
+
+export async function saveProjects(projects: any[]): Promise<void> {
+  for (const project of projects) {
+    await saveProject(project);
+  }
+}
+
+export async function deleteProjectsByCompany(companyId: string): Promise<boolean> {
+  const { error } = await supabase.from('projects').delete().eq('company_id', companyId);
+  return !error;
+}
+
+// =====================
+// TEAM
+// =====================
+
+export async function loadTeamByCompany(companyId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('*')
+    .eq('company_id', companyId);
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function saveTeamByCompany(companyId: string, team: any[]): Promise<void> {
+  for (const member of team) {
+    await supabase.from('team_members').upsert({ ...member, company_id: companyId });
+  }
+}
+
+// =====================
+// CALENDAR
+// =====================
+
+export async function loadCalendarEvents(companyId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('date', { ascending: true });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function saveCalendarEvents(companyId: string, events: any[]): Promise<void> {
+  await supabase.from('calendar_events').delete().eq('company_id', companyId);
+  if (events.length > 0) {
+    await supabase.from('calendar_events').insert(
+      events.map(e => ({ ...e, company_id: companyId }))
+    );
+  }
+}
+
+// =====================
+// GARGALOS
+// =====================
+
+export async function loadGargalosByCompany(companyId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('gargalos')
+    .select('*')
+    .eq('company_id', companyId);
+  if (error) return [];
+  return (data ?? []).map(g => g.data);
+}
+
+export async function saveGargalosByCompany(companyId: string, gargalos: any[]): Promise<void> {
+  await supabase.from('gargalos').delete().eq('company_id', companyId);
+  if (gargalos.length > 0) {
+    await supabase.from('gargalos').insert(
+      gargalos.map(g => ({ data: g, company_id: companyId }))
+    );
+  }
+}
+
+// =====================
+// LEGACY — mantidos para compatibilidade
+// =====================
+
+export const defaultUsers: StoredUser[] = [];
+export const defaultCompanies: any[] = [];
+export function clearAllData(): void {}
+export function resetToCleanState(): void {}
+export function initializeDefaultData(): void {}

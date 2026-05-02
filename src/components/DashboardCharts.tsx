@@ -27,8 +27,7 @@ export default function DashboardCharts({ disciplineData, floorData, companyId }
 
   useEffect(() => {
     if (companyId) {
-      const gargalos = loadGargalosByCompany(companyId);
-      setGargalosCount(gargalos.length);
+      loadGargalosByCompany(companyId).then(g => setGargalosCount(g.length));
     }
   }, [companyId]);
 

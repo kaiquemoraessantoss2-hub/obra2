@@ -163,31 +163,34 @@ export default function GlobalApplication() {
   useEffect(() => {
     // Verificar sessionStorage primeiro
     const savedMember = sessionStorage.getItem('current_member');
-    if (savedMember) {
-      try {
-        const member = JSON.parse(savedMember);
-        setCurrentMember(member);
-        
-        // Também carregar dados do projeto para o membro
-        initializeDefaultData();
-        const storedProjects = loadProjects();
-        setAllProjects(storedProjects);
-        if (storedProjects.length > 0) {
-          setActiveProjectId(storedProjects[0].id);
-          setCurrentProjectIndex(0);
-          const savedPhases = loadProjectPhases(storedProjects[0].id);
-          setPhases(savedPhases || []);
+    const loadMemberData = async () => {
+      if (savedMember) {
+        try {
+          const member = JSON.parse(savedMember);
+          setCurrentMember(member);
+
+          // Também carregar dados do projeto para o membro
+          initializeDefaultData();
+          const storedProjects = await loadProjects();
+          setAllProjects(storedProjects);
+          if (storedProjects.length > 0) {
+            setActiveProjectId(storedProjects[0].id);
+            setCurrentProjectIndex(0);
+            const savedPhases = loadProjectPhases(storedProjects[0].id);
+            setPhases(savedPhases || []);
+          }
+        } catch (e) {
+          console.error('Erro ao carregar membro:', e);
         }
-      } catch (e) {
-        console.error('Erro ao carregar membro:', e);
       }
-    }
+    };
+    loadMemberData();
 
     const loadInitialData = async () => {
       initializeDefaultData();
-      const storedCompanies = loadCompanies();
-      const storedProjects = loadProjects();
-      const users = getAllUsers();
+      const storedCompanies = await loadCompanies();
+      const storedProjects = await loadProjects();
+      const users = await getAllUsers();
       
       const supabaseProfiles = await loadUserProfilesFromSupabase();
       
@@ -313,8 +316,7 @@ export default function GlobalApplication() {
 
   useEffect(() => {
     if (currentViewCompanyId && isInitialized) {
-      const storedTeam = loadTeamByCompany(currentViewCompanyId);
-      setTeam(storedTeam);
+      loadTeamByCompany(currentViewCompanyId).then(setTeam);
     }
   }, [currentViewCompanyId, isInitialized]);
 
@@ -1037,21 +1039,21 @@ setToast({ message: "Plano renovado por +30 dias!", type: 'success' });
                    ));
                    setToast({ message: isActive ? "Usuário ativado!" : "Usuário desativado!", type: 'success' });
                 }}
-                onDeleteUser={(userId: string) => {
+                onDeleteUser={async (userId: string) => {
                    if (confirm('Tem certeza que deseja excluir este usuário?')) {
                       try {
-                        const usersBefore = getAllUsers();
+                        const usersBefore = await getAllUsers();
                         const userToDelete = usersBefore.find((u: any) => u.id === userId);
                         const companyIdToCheck = userToDelete?.companyId;
-                        
-                        const deleted = deleteUser(userId);
+
+                        const deleted = await deleteUser(userId);
                         if (!deleted) {
                           setToast({ message: "Erro ao excluir usuário", type: 'error' });
                           return;
                         }
-                        
-                        const updatedUsers = getAllUsers();
-                        
+
+                        const updatedUsers = await getAllUsers();
+
                         if (companyIdToCheck) {
                           const remainingUsersInCompany = updatedUsers.filter((u: any) => u.companyId === companyIdToCheck);
                           if (remainingUsersInCompany.length === 0) {
