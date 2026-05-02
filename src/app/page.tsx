@@ -176,7 +176,7 @@ export default function GlobalApplication() {
           if (storedProjects.length > 0) {
             setActiveProjectId(storedProjects[0].id);
             setCurrentProjectIndex(0);
-            const savedPhases = loadProjectPhases(storedProjects[0].id);
+            const savedPhases = await loadProjectPhases(storedProjects[0].id);
             setPhases(savedPhases || []);
           }
         } catch (e) {
@@ -247,9 +247,9 @@ export default function GlobalApplication() {
         const firstProject = storedProjects[0];
         setActiveProjectId(firstProject.id);
         setCurrentProjectIndex(0);
-        const savedPhases = loadProjectPhases(firstProject.id);
+        const savedPhases = await loadProjectPhases(firstProject.id);
         setPhases(savedPhases || []);
-        const savedConfig = loadProjectConfig(firstProject.id);
+        const savedConfig = await loadProjectConfig(firstProject.id);
         setBuildingConfig(savedConfig);
         if (savedPhases && savedPhases.length > 0) {
           setShowEmptyPhaseState(false);
@@ -264,46 +264,50 @@ export default function GlobalApplication() {
     loadInitialData();
   }, []);
 
-  const selectProject = (projectId: string) => {
+  const selectProject = async (projectId: string) => {
     if (activeProjectId && activeProjectId !== projectId) {
       if (phases.length > 0) {
-        saveProjectPhases(activeProjectId, phases);
+        await saveProjectPhases(activeProjectId, phases);
       }
       if (buildingConfig) {
-        saveProjectConfig(activeProjectId, buildingConfig);
+        await saveProjectConfig(activeProjectId, buildingConfig);
       }
     }
-    
+
     setActiveProjectId(projectId);
-    
+
     const projectIdx = companyProjects.findIndex(p => p.id === projectId);
     if (projectIdx >= 0) {
       setCurrentProjectIndex(projectIdx);
     }
-    
-    const savedPhases = loadProjectPhases(projectId);
+
+    const savedPhases = await loadProjectPhases(projectId);
     setPhases(savedPhases || []);
-    
-    const savedConfig = loadProjectConfig(projectId);
+
+    const savedConfig = await loadProjectConfig(projectId);
     setBuildingConfig(savedConfig);
-    
+
     setEditingProjectIndex(null);
   };
 
   useEffect(() => {
     if (!activeProjectId || !project) return;
-    
-    const savedPhases = loadProjectPhases(activeProjectId);
-    setPhases(savedPhases || []);
-    
-    const savedConfig = loadProjectConfig(activeProjectId);
-    setBuildingConfig(savedConfig);
-    
-    if (savedPhases && savedPhases.length > 0) {
-      setShowEmptyPhaseState(false);
-    } else {
-      setShowEmptyPhaseState(true);
-    }
+
+    const loadData = async () => {
+      const savedPhases = await loadProjectPhases(activeProjectId);
+      setPhases(savedPhases || []);
+
+      const savedConfig = await loadProjectConfig(activeProjectId);
+      setBuildingConfig(savedConfig);
+
+      if (savedPhases && savedPhases.length > 0) {
+        setShowEmptyPhaseState(false);
+      } else {
+        setShowEmptyPhaseState(true);
+      }
+    };
+
+    loadData();
   }, [activeProjectId]);
 
   useEffect(() => {
@@ -1386,7 +1390,7 @@ onRefresh={async () => {
                           companyProjects.map((p, i) => (
                            <div key={p.id} className={cn("glass-card p-10 rounded-[40px] cursor-pointer group hover:scale-[1.02] transition-all relative", currentProjectIndex === i ? "border-blue-600 border-2" : "border-white/5")}>
                               <button
-                                onClick={(e) => { e.stopPropagation(); if (p && p.id) { setCurrentProjectIndex(i); setActiveProjectId(p.id); const savedPhases = loadProjectPhases(p.id); setPhases(savedPhases || []); const savedConfig = loadProjectConfig(p.id); setBuildingConfig(savedConfig); if (savedPhases && savedPhases.length > 0) { setShowEmptyPhaseState(false); } else { setShowEmptyPhaseState(true); } if (editingProjectIndex !== null) setEditingProjectIndex(null); else setEditingProjectIndex(i); } }}
+                                onClick={async (e) => { e.stopPropagation(); if (p && p.id) { setCurrentProjectIndex(i); setActiveProjectId(p.id); const savedPhases = await loadProjectPhases(p.id); setPhases(savedPhases || []); const savedConfig = await loadProjectConfig(p.id); setBuildingConfig(savedConfig); if (savedPhases && savedPhases.length > 0) { setShowEmptyPhaseState(false); } else { setShowEmptyPhaseState(true); } if (editingProjectIndex !== null) setEditingProjectIndex(null); else setEditingProjectIndex(i); } }}
                                 className="absolute top-4 right-4 p-2 bg-blue-600/20 text-blue-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
                               >
                                 <Pencil size={16} />
