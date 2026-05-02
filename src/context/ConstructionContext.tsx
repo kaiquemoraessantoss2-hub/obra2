@@ -2,9 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { ConstructionPhase, SubStep, Status } from '../types';
-import { INITIAL_PHASES, calculatePhaseProgress } from '../lib/constructionPhasesMock';
-
-const STORAGE_KEY = 'construction_phases';
+import { calculatePhaseProgress } from '../lib/constructionPhasesMock';
+import { saveProjectPhases, loadProjectPhases } from '../lib/projectStorage';
 
 interface ConstructionContextType {
   phases: ConstructionPhase[];
@@ -20,6 +19,8 @@ interface ConstructionContextType {
   resetToDefault: () => void;
   editingPhaseId: string | null;
   setEditingPhaseId: (id: string | null) => void;
+  projectId: string | null;
+  setProjectId: (id: string) => void;
 }
 
 const ConstructionContext = createContext<ConstructionContextType | undefined>(undefined);
@@ -28,29 +29,25 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   const [phases, setPhases] = useState<ConstructionPhase[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
+  const [projectId, setProjectIdState] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.length > 0) {
-          setPhases(parsed);
-        }
-      } catch {
-        setPhases([]);
-      }
-    } else {
-      setPhases([]);
-    }
-    setIsInitialized(true);
+  const setProjectId = useCallback((id: string) => {
+    setProjectIdState(id);
+    setIsInitialized(false);
   }, []);
 
   useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(phases));
-    }
-  }, [phases, isInitialized]);
+    if (!projectId) return;
+    loadProjectPhases(projectId).then(loaded => {
+      setPhases(loaded && loaded.length > 0 ? loaded : []);
+      setIsInitialized(true);
+    });
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!isInitialized || !projectId) return;
+    saveProjectPhases(projectId, phases);
+  }, [phases, isInitialized, projectId]);
 
   const recalculatePhaseProgress = useCallback((phase: ConstructionPhase): number => {
     return calculatePhaseProgress(phase);
@@ -67,15 +64,9 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   const updatePhase = useCallback((phaseId: string, data: Partial<ConstructionPhase>) => {
     setPhases(prev => {
       const updated = prev.map(phase => {
-        if (phase.id === phaseId) {
-          const updatedPhase = { ...phase, ...data };
-          return {
-            ...updatedPhase,
-            progress: recalculatePhaseProgress(updatedPhase),
-            status: calculatePhaseStatus(updatedPhase),
-          };
-        }
-        return phase;
+        if (phase.id !== phaseId) return phase;
+        const updatedPhase = { ...phase, ...data };
+        return { ...updatedPhase, progress: recalculatePhaseProgress(updatedPhase), status: calculatePhaseStatus(updatedPhase) };
       });
       return recalculateAllPhases(updated);
     });
@@ -84,44 +75,22 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   const updateSubStep = useCallback((phaseId: string, subStepId: string, data: Partial<SubStep>) => {
     setPhases(prev => {
       const updated = prev.map(phase => {
-        if (phase.id === phaseId) {
-          const updatedSubSteps = phase.subSteps.map(subStep => {
-            if (subStep.id === subStepId) {
-              return { ...subStep, ...data };
-            }
-            return subStep;
-          });
-          const updatedPhase = { ...phase, subSteps: updatedSubSteps };
-          return {
-            ...updatedPhase,
-            progress: recalculatePhaseProgress(updatedPhase),
-            status: calculatePhaseStatus(updatedPhase),
-          };
-        }
-        return phase;
+        if (phase.id !== phaseId) return phase;
+        const updatedSubSteps = phase.subSteps.map(s => s.id === subStepId ? { ...s, ...data } : s);
+        const updatedPhase = { ...phase, subSteps: updatedSubSteps };
+        return { ...updatedPhase, progress: recalculatePhaseProgress(updatedPhase), status: calculatePhaseStatus(updatedPhase) };
       });
       return recalculateAllPhases(updated);
     });
   }, [recalculatePhaseProgress, recalculateAllPhases]);
 
   const addSubStep = useCallback((phaseId: string, newSubStep: Omit<SubStep, 'id'>) => {
-    const subStepId = `s${phaseId.replace('p', '')}_${Date.now()}`;
-    const subStep: SubStep = { ...newSubStep, id: subStepId };
-    
+    const subStep: SubStep = { ...newSubStep, id: `s${phaseId.replace('p', '')}_${Date.now()}` };
     setPhases(prev => {
       const updated = prev.map(phase => {
-        if (phase.id === phaseId) {
-          const updatedPhase = { 
-            ...phase, 
-            subSteps: [...phase.subSteps, subStep] 
-          };
-          return {
-            ...updatedPhase,
-            progress: recalculatePhaseProgress(updatedPhase),
-            status: calculatePhaseStatus(updatedPhase),
-          };
-        }
-        return phase;
+        if (phase.id !== phaseId) return phase;
+        const updatedPhase = { ...phase, subSteps: [...phase.subSteps, subStep] };
+        return { ...updatedPhase, progress: recalculatePhaseProgress(updatedPhase), status: calculatePhaseStatus(updatedPhase) };
       });
       return recalculateAllPhases(updated);
     });
@@ -130,18 +99,9 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   const removeSubStep = useCallback((phaseId: string, subStepId: string) => {
     setPhases(prev => {
       const updated = prev.map(phase => {
-        if (phase.id === phaseId) {
-          const updatedPhase = { 
-            ...phase, 
-            subSteps: phase.subSteps.filter(s => s.id !== subStepId) 
-          };
-          return {
-            ...updatedPhase,
-            progress: recalculatePhaseProgress(updatedPhase),
-            status: calculatePhaseStatus(updatedPhase),
-          };
-        }
-        return phase;
+        if (phase.id !== phaseId) return phase;
+        const updatedPhase = { ...phase, subSteps: phase.subSteps.filter(s => s.id !== subStepId) };
+        return { ...updatedPhase, progress: recalculatePhaseProgress(updatedPhase), status: calculatePhaseStatus(updatedPhase) };
       });
       return recalculateAllPhases(updated);
     });
@@ -150,18 +110,12 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   const reorderSubSteps = useCallback((phaseId: string, fromIndex: number, toIndex: number) => {
     setPhases(prev => {
       const updated = prev.map(phase => {
-        if (phase.id === phaseId) {
-          const newSubSteps = [...phase.subSteps];
-          const [removed] = newSubSteps.splice(fromIndex, 1);
-          newSubSteps.splice(toIndex, 0, removed);
-          const updatedPhase = { ...phase, subSteps: newSubSteps };
-          return {
-            ...updatedPhase,
-            progress: recalculatePhaseProgress(updatedPhase),
-            status: calculatePhaseStatus(updatedPhase),
-          };
-        }
-        return phase;
+        if (phase.id !== phaseId) return phase;
+        const newSubSteps = [...phase.subSteps];
+        const [removed] = newSubSteps.splice(fromIndex, 1);
+        newSubSteps.splice(toIndex, 0, removed);
+        const updatedPhase = { ...phase, subSteps: newSubSteps };
+        return { ...updatedPhase, progress: recalculatePhaseProgress(updatedPhase), status: calculatePhaseStatus(updatedPhase) };
       });
       return recalculateAllPhases(updated);
     });
@@ -169,26 +123,19 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
 
   const calculateOverallProgress = useCallback((): number => {
     if (phases.length === 0) return 0;
-    
     const totalWeight = phases.reduce((sum, p) => sum + p.weight, 0);
     if (totalWeight === 0) return 0;
-    
-    const weightedSum = phases.reduce((sum, phase) => {
-      return sum + (phase.progress * phase.weight) / 100;
-    }, 0);
-    
+    const weightedSum = phases.reduce((sum, p) => sum + (p.progress * p.weight) / 100, 0);
     return Math.round((weightedSum / totalWeight) * 100);
   }, [phases]);
 
   const resetToDefault = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setPhases(INITIAL_PHASES);
-  }, []);
+    if (projectId) saveProjectPhases(projectId, []);
+    setPhases([]);
+  }, [projectId]);
 
   const addPhase = useCallback((newPhase: Omit<ConstructionPhase, 'id'>) => {
-    const phaseId = `p_${Date.now()}`;
-    const phase: ConstructionPhase = { ...newPhase, id: phaseId };
-    setPhases(prev => [...prev, phase]);
+    setPhases(prev => [...prev, { ...newPhase, id: `p_${Date.now()}` }]);
   }, []);
 
   const removePhase = useCallback((phaseId: string) => {
@@ -196,23 +143,14 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ConstructionContext.Provider 
-      value={{
-        phases,
-        setPhases,
-        updatePhase,
-        updateSubStep,
-        addSubStep,
-        removeSubStep,
-        reorderSubSteps,
-        addPhase,
-        removePhase,
-        calculateOverallProgress,
-        resetToDefault,
-        editingPhaseId,
-        setEditingPhaseId,
-      }}
-    >
+    <ConstructionContext.Provider value={{
+      phases, setPhases,
+      updatePhase, updateSubStep, addSubStep, removeSubStep,
+      reorderSubSteps, addPhase, removePhase,
+      calculateOverallProgress, resetToDefault,
+      editingPhaseId, setEditingPhaseId,
+      projectId, setProjectId,
+    }}>
       {children}
     </ConstructionContext.Provider>
   );
@@ -220,9 +158,7 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
 
 export function useConstruction() {
   const context = useContext(ConstructionContext);
-  if (!context) {
-    throw new Error('useConstruction must be used within ConstructionProvider');
-  }
+  if (!context) throw new Error('useConstruction must be used within ConstructionProvider');
   return context;
 }
 
@@ -230,16 +166,7 @@ function calculatePhaseStatus(phase: ConstructionPhase): Status {
   const progress = calculatePhaseProgress(phase);
   if (progress === 0) return 'NOT_STARTED';
   if (progress === 100) return 'COMPLETED';
-  
   if (phase.status === 'BLOCKED') return 'BLOCKED';
-  
-  const today = new Date();
-  const deadline = new Date(phase.endDate);
-  if (phase.status !== 'COMPLETED' && today > deadline) {
-    return 'DELAYED';
-  }
-  
-  if (progress < 100 && progress > 0) return 'IN_PROGRESS';
-  
+  if (phase.status !== 'COMPLETED' && new Date() > new Date(phase.endDate)) return 'DELAYED';
   return 'IN_PROGRESS';
 }
