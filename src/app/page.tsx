@@ -68,7 +68,7 @@ import BulkEditBar from '@/components/BulkEditBar';
 import ProjectSelectorBar from '@/components/ProjectSelectorBar';
 import EmptyPhaseState from '@/components/EmptyPhaseState';
 import { ModuleGuard, TeamPage, LoginPage, PendenciasSection, MedicaoObraSection } from '@/components/team';
-import { Floor, Status, User, BuildingConfig, ConstructionPhase, FloorExecution } from '@/types';
+import { Floor, Status, User, BuildingConfig, ConstructionPhase, FloorExecution, SubStep } from '@/types';
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
 import { getProgressPercentage, cn } from '@/lib/utils';
 import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, Company, Project } from '@/lib/auth';
@@ -541,7 +541,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const updatedPhases = project.phases?.map(phase => {
       if (phase.id !== phaseId) return phase;
       
-      const updatedSubSteps = phase.subSteps.map(step => 
+      const updatedSubSteps = phase.subSteps.map((step: SubStep) =>
         step.id === subStepId ? { ...step, status: (newProgress === 100 ? 'COMPLETED' : 'IN_PROGRESS') as Status, progress: newProgress } : step
       );
       
