@@ -22,16 +22,11 @@ export default function AdminSettings({ currentUser, onUpdateUser }: Props) {
     try {
       const data = await loadUserProfilesFromSupabase();
       const mapped: UserType[] = data.map((u) => ({
-        id: (u as Record<string, unknown>).id as string,
-        email: (u as Record<string, unknown>).email as string,
-        name: ((u as Record<string, unknown>).name as string) || ((u as Record<string, unknown>).email as string),
-        role: ((u as Record<string, unknown>).role as UserType['role']) || 'ADMIN',
-        companyId: ((u as Record<string, unknown>).companyId as string) || '',
-        id: u.id,
-        email: u.email,
-        name: u.name || u.email,
+        id: u.id as string,
+        email: u.email as string,
+        name: (u.name as string) || (u.email as string),
         role: (u.role as UserType['role']) || 'ADMIN',
-        companyId: u.companyId || '',
+        companyId: (u.companyId as string) || '',
       }));
       setUsers(mapped);
     } catch (err) {
@@ -305,10 +300,16 @@ function ProfileSection({ user, onUpdate }: { user: UserType; onUpdate: (user: U
 
 function UsersSection({ users, loading, onAdd, onDelete }: { users: UserType[]; loading: boolean; onAdd: () => void; onDelete: (userId: string) => void }) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<{
+    name: string;
+    email: string;
+    role: UserType['role'];
+    companyId: string;
+    password: string;
+  }>({
     name: '',
     email: '',
-    role: 'ENGINEER' as const,
+    role: 'ENGINEER',
     companyId: '',
     password: ''
   });
