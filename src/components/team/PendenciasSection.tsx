@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, CheckCircle, Circle, Trash2, User, Clock } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export interface Pendencia {
   id: string;
@@ -15,20 +16,24 @@ export interface Pendencia {
   concluidaEm?: string;
 }
 
-const PENDENCIAS_KEY = 'projeto_pendencias';
-
-function loadPendencias(projectId: string): Pendencia[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(`${PENDENCIAS_KEY}_${projectId}`);
-  return stored ? JSON.parse(stored) : [];
-}
-
-function savePendencias(projectId: string, pendencias: Pendencia[]): void {
-  localStorage.setItem(`${PENDENCIAS_KEY}_${projectId}`, JSON.stringify(pendencias));
-}
-
-function generateId(): string {
-  return `pend_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+async function fetchPendencias(projectId: string): Promise<Pendencia[]> {
+  const { data, error } = await supabase
+    .from('pendencias')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return (data ?? []).map(r => ({
+    id: r.id,
+    projectId: r.project_id,
+    conteudo: r.conteudo,
+    responsavel: r.responsavel ?? '',
+    nomeMembro: r.nome_membro ?? '',
+    createdAt: r.created_at,
+    concluida: r.concluida,
+    concluidaPor: r.concluida_por,
+    concluidaEm: r.concluida_em,
+  }));
 }
 
 interface PendenciasSectionProps {
@@ -48,50 +53,50 @@ export default function PendenciasSection({
   const [responsavel, setResponsavel] = useState('');
 
   useEffect(() => {
-    setPendencias(loadPendencias(projectId));
+    fetchPendencias(projectId).then(setPendencias);
   }, [projectId]);
 
-  const adicionarPendencia = () => {
+  const adicionarPendencia = async () => {
     if (!novaPendencia.trim()) return;
-    
-    const nova: Pendencia = {
-      id: generateId(),
-      projectId,
+    const { data, error } = await supabase.from('pendencias').insert({
+      project_id: projectId,
       conteudo: novaPendencia.trim(),
       responsavel: responsavel.trim() || currentUserName,
-      nomeMembro: currentUserName,
-      createdAt: new Date().toISOString(),
+      nome_membro: currentUserName,
       concluida: false,
-    };
-    
-    const updated = [...pendencias, nova];
-    savePendencias(projectId, updated);
-    setPendencias(updated);
+    }).select().single();
+    if (error || !data) return;
+    setPendencias(prev => [...prev, {
+      id: data.id, projectId: data.project_id, conteudo: data.conteudo,
+      responsavel: data.responsavel ?? '', nomeMembro: data.nome_membro ?? '',
+      createdAt: data.created_at, concluida: data.concluida,
+    }]);
     setNovaPendencia('');
     setResponsavel('');
     setShowAdd(false);
   };
 
-  const toggleConcluida = (id: string) => {
-    const updated = pendencias.map(p => {
-      if (p.id !== id) return p;
-      const novaPendencia = !p.concluida;
-      return {
-        ...p,
-        concluida: novaPendencia,
-        concluidaPor: novaPendencia ? currentUserName : undefined,
-        concluidaEm: novaPendencia ? new Date().toISOString() : undefined,
-      };
-    });
-    savePendencias(projectId, updated);
-    setPendencias(updated);
+  const toggleConcluida = async (id: string) => {
+    const p = pendencias.find(p => p.id === id);
+    if (!p) return;
+    const novaConcluida = !p.concluida;
+    await supabase.from('pendencias').update({
+      concluida: novaConcluida,
+      concluida_por: novaConcluida ? currentUserName : null,
+      concluida_em: novaConcluida ? new Date().toISOString() : null,
+    }).eq('id', id);
+    setPendencias(prev => prev.map(item => item.id !== id ? item : {
+      ...item,
+      concluida: novaConcluida,
+      concluidaPor: novaConcluida ? currentUserName : undefined,
+      concluidaEm: novaConcluida ? new Date().toISOString() : undefined,
+    }));
   };
 
-  const removerPendencia = (id: string) => {
+  const removerPendencia = async (id: string) => {
     if (!confirm('Remover esta pendência?')) return;
-    const updated = pendencias.filter(p => p.id !== id);
-    savePendencias(projectId, updated);
-    setPendencias(updated);
+    await supabase.from('pendencias').delete().eq('id', id);
+    setPendencias(prev => prev.filter(p => p.id !== id));
   };
 
   const pendenciasAbertas = pendencias.filter(p => !p.concluida);

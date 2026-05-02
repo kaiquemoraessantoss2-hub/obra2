@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Download, Upload, Trash2, DollarSign, FileSpreadsheet, Filter, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Medicao {
   id: string;
@@ -17,22 +18,28 @@ interface Medicao {
   createdBy: string;
 }
 
-const MEDICOES_KEY = 'projeto_medicoes';
-
 const DISCIPLINAS = ['Elétrica', 'Hidráulica', 'Alvenaria', 'Revestimento', 'Pintura', 'Gás', 'Dados', 'Incêndio'];
 
-function loadMedicoes(projectId: string): Medicao[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(`${MEDICOES_KEY}_${projectId}`);
-  return stored ? JSON.parse(stored) : [];
-}
-
-function saveMedicoes(projectId: string, medicoes: Medicao[]): void {
-  localStorage.setItem(`${MEDICOES_KEY}_${projectId}`, JSON.stringify(medicoes));
-}
-
-function generateId(): string {
-  return `med_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+async function fetchMedicoes(projectId: string): Promise<Medicao[]> {
+  const { data, error } = await supabase
+    .from('medicoes')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return (data ?? []).map(r => ({
+    id: r.id,
+    projectId: r.project_id,
+    disciplina: r.disciplina,
+    contratante: r.contratante ?? '',
+    descricao: r.descricao,
+    quantidade: r.quantidade,
+    unidade: r.unidade ?? '',
+    valorUnitario: r.valor_unitario,
+    valorTotal: r.valor_total,
+    createdAt: r.created_at,
+    createdBy: r.created_by ?? '',
+  }));
 }
 
 interface MedicaoFormData {
@@ -70,7 +77,7 @@ export default function MedicaoObraSection({
   });
 
   useEffect(() => {
-    setMedicoes(loadMedicoes(projectId));
+    fetchMedicoes(projectId).then(setMedicoes);
   }, [projectId]);
 
   const resetForm = () => {
@@ -84,38 +91,37 @@ export default function MedicaoObraSection({
     });
   };
 
-  const adicionarMedicao = () => {
+  const adicionarMedicao = async () => {
     if (!form.disciplina || !form.descricao || !form.quantidade || !form.valorUnitario) return;
-    
     const quantidade = parseFloat(form.quantidade.replace(',', '.'));
     const valorUnitario = parseFloat(form.valorUnitario.replace(',', '.'));
-    
-    const nova: Medicao = {
-      id: generateId(),
-      projectId,
+    const { data, error } = await supabase.from('medicoes').insert({
+      project_id: projectId,
       disciplina: form.disciplina,
       contratante: form.contratante,
       descricao: form.descricao,
       quantidade,
       unidade: form.unidade,
-      valorUnitario,
-      valorTotal: quantidade * valorUnitario,
-      createdAt: new Date().toISOString(),
-      createdBy: currentUserName,
-    };
-    
-    const updated = [...medicoes, nova];
-    saveMedicoes(projectId, updated);
-    setMedicoes(updated);
+      valor_unitario: valorUnitario,
+      valor_total: quantidade * valorUnitario,
+      created_by: currentUserName,
+    }).select().single();
+    if (error || !data) return;
+    setMedicoes(prev => [...prev, {
+      id: data.id, projectId: data.project_id, disciplina: data.disciplina,
+      contratante: data.contratante ?? '', descricao: data.descricao,
+      quantidade: data.quantidade, unidade: data.unidade ?? '',
+      valorUnitario: data.valor_unitario, valorTotal: data.valor_total,
+      createdAt: data.created_at, createdBy: data.created_by ?? '',
+    }]);
     resetForm();
     setShowAdd(false);
   };
 
-  const removerMedicao = (id: string) => {
+  const removerMedicao = async (id: string) => {
     if (!confirm('Remover esta medição?')) return;
-    const updated = medicoes.filter(m => m.id !== id);
-    saveMedicoes(projectId, updated);
-    setMedicoes(updated);
+    await supabase.from('medicoes').delete().eq('id', id);
+    setMedicoes(prev => prev.filter(m => m.id !== id));
   };
 
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,7 +129,7 @@ export default function MedicaoObraSection({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const text = event.target?.result as string;
       const lines = text.split('\n');
       const newMedicoes: Medicao[] = [];
@@ -132,14 +138,14 @@ export default function MedicaoObraSection({
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        
+
         const cols = line.split(',');
         if (cols.length >= 7) {
           const quantidade = parseFloat(cols[4].replace(',', '.')) || 0;
           const valorUnitario = parseFloat(cols[6].replace(',', '.')) || 0;
-          
+
           newMedicoes.push({
-            id: generateId(),
+            id: '',
             projectId,
             disciplina: cols[0].trim(),
             contratante: cols[1].trim(),
@@ -154,9 +160,20 @@ export default function MedicaoObraSection({
         }
       }
 
-      const updated = [...medicoes, ...newMedicoes];
-      saveMedicoes(projectId, updated);
-      setMedicoes(updated);
+      const inserts = newMedicoes.map(m => ({
+        project_id: m.projectId,
+        disciplina: m.disciplina,
+        contratante: m.contratante,
+        descricao: m.descricao,
+        quantidade: m.quantidade,
+        unidade: m.unidade,
+        valor_unitario: m.valorUnitario,
+        valor_total: m.valorTotal,
+        created_by: m.createdBy,
+      }));
+      await supabase.from('medicoes').insert(inserts);
+      const refreshed = await fetchMedicoes(projectId);
+      setMedicoes(refreshed);
       alert(`${newMedicoes.length} medições importadas!`);
     };
     reader.readAsText(file);
