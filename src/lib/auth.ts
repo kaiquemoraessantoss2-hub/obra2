@@ -29,7 +29,7 @@ export interface Company {
 }
 
 export interface Project {
-  id?: string;
+  id: string;
   name: string;
   location?: string;
   clientName?: string;
