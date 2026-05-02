@@ -88,7 +88,7 @@ export default function GlobalApplication() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileInputRef = useRef<HTMLInputElement>(null);
 
-  // States - carregados do localStorage
+  // States - carregados do Supabase
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [buildingConfig, setBuildingConfig] = useState<BuildingConfig | null>(null);
@@ -161,30 +161,7 @@ export default function GlobalApplication() {
   };
 
   useEffect(() => {
-    // Verificar sessionStorage primeiro
-    const savedMember = sessionStorage.getItem('current_member');
-    const loadMemberData = async () => {
-      if (savedMember) {
-        try {
-          const member = JSON.parse(savedMember);
-          setCurrentMember(member);
-
-          // Também carregar dados do projeto para o membro
-          initializeDefaultData();
-          const storedProjects = await loadProjects();
-          setAllProjects(storedProjects);
-          if (storedProjects.length > 0) {
-            setActiveProjectId(storedProjects[0].id);
-            setCurrentProjectIndex(0);
-            const savedPhases = await loadProjectPhases(storedProjects[0].id);
-            setPhases(savedPhases || []);
-          }
-        } catch (e) {
-          console.error('Erro ao carregar membro:', e);
-        }
-      }
-    };
-    loadMemberData();
+    // currentMember is held in React state only — no sessionStorage persistence needed
 
     const loadInitialData = async () => {
       initializeDefaultData();
@@ -258,7 +235,7 @@ export default function GlobalApplication() {
         }
       }
       
-      localStorage.removeItem('construction_phases');
+      // construction_phases previously removed from localStorage - now stored in Supabase
     };
     
     loadInitialData();
@@ -655,7 +632,7 @@ if (currentMember) {
               </button>
             )}
           </nav>
-          <button onClick={() => { sessionStorage.removeItem('current_member'); setCurrentMember(null); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
+          <button onClick={() => { setCurrentMember(null); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
         </aside>
         <main className="flex-1 overflow-y-auto pb-20 p-10">
           {activeModule === 'dashboard' && hasAccess('DASHBOARD') && (

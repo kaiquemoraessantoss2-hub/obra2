@@ -131,7 +131,7 @@ function ProfileSection({ user, onUpdate }: { user: UserType; onUpdate: (user: U
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       alert('As senhas não conferem!');
       return;
@@ -141,7 +141,12 @@ function ProfileSection({ user, onUpdate }: { user: UserType; onUpdate: (user: U
       return;
     }
     try {
-      localStorage.setItem(`password_${user.id}`, newPassword);
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        alert(`Erro ao alterar senha: ${error.message}`);
+        return;
+      }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

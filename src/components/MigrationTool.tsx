@@ -10,21 +10,13 @@ export default function MigrationTool() {
 
   const startMigration = async () => {
     setStatus('migrating');
-    setMessage('Coletando dados locais...');
+    setMessage('Verificando dados locais...');
 
     try {
-      // Coletar dados do localStorage
-      const companies = JSON.parse(localStorage.getItem('obraflow_companies') || '[]');
-      const projects = JSON.parse(localStorage.getItem('obraflow_projects') || '[]');
-      
-      // Carregar pavimentos de cada projeto
-      const enrichedProjects = projects.map((p: any) => {
-        const config = JSON.parse(localStorage.getItem(`project_config_${p.id}`) || 'null');
-        return {
-          ...p,
-          floors: config?.floors || p.floors || []
-        };
-      });
+      // Migration is complete — all data now lives in Supabase.
+      // There are no longer any localStorage keys to read.
+      const companies: any[] = [];
+      const enrichedProjects: any[] = [];
 
       setMessage('Enviando dados para o Supabase...');
 
