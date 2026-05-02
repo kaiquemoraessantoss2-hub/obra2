@@ -72,6 +72,7 @@ import { Floor, Status, Project, Company, User, BuildingConfig, ConstructionPhas
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
 import { getProgressPercentage, cn } from '@/lib/utils';
 import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function GlobalApplication() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -97,6 +98,17 @@ export default function GlobalApplication() {
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
   const [editingExecution, setEditingExecution] = useState<{ phaseId: string; subStepId: string; execution: FloorExecution } | null>(null);
+
+  // Clear stale sessions — fires SIGNED_OUT when a stored refresh token is invalid
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setCurrentMember(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [currentViewCompanyId, setCurrentViewCompanyId] = useState<string>('');
   const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
