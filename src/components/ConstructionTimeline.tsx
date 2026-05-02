@@ -8,7 +8,7 @@ import {
 import { ConstructionPhase, SubStep, Status } from '../types';
 import { cn } from '../lib/utils';
 
-type LucideIcon = React.ComponentType<{ className?: string }>;
+type LucideIcon = React.ComponentType<{ className?: string; size?: number }>;
 
 const ICON_MAP: Record<string, LucideIcon> = {
   FileText, Box, Layers, Building, Zap, Droplets, CheckCircle, Users, Shield
@@ -851,7 +851,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
           <label className="text-[10px] font-black text-slate-600 uppercase">Nome da Fase *</label>
           <input
             type="text"
-            value={FormData.name}
+            value={formData.name}
             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             className="w-full mt-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
             placeholder="Ex: Estrutura, Alvenaria..."
@@ -871,7 +871,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
                   onClick={() => setFormData(prev => ({ ...prev, icon }))}
                   className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                    FormData.icon === icon ? "bg-blue-600" : "bg-white/5 hover:bg-white/10"
+                    formData.icon === icon ? "bg-blue-600" : "bg-white/5 hover:bg-white/10"
                   )}
                 >
                   <IconComp size={18} className="text-white" />
@@ -892,7 +892,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
                 className={cn(
                   "w-10 h-10 rounded-xl transition-all",
                   color,
-                  FormData.color === color && "ring-2 ring-white ring-offset-2 ring-offset-black"
+                  formData.color === color && "ring-2 ring-white ring-offset-2 ring-offset-black"
                 )}
               />
             ))}
@@ -905,7 +905,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
             type="number"
             min={0}
             max={100}
-            value={FormData.weight}
+            value={formData.weight}
             onChange={(e) => setFormData(prev => ({ ...prev, weight: parseInt(e.target.value) || 0 }))}
             className="w-full mt-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
           />
@@ -915,7 +915,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
           <label className="text-[10px] font-black text-slate-600 uppercase">Responsável</label>
           <input
             type="text"
-            value={FormData.responsible}
+            value={formData.responsible}
             onChange={(e) => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
             className="w-full mt-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
             placeholder="Nome do responsável"
@@ -927,7 +927,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
             <label className="text-[10px] font-black text-slate-600 uppercase">Início</label>
             <input
               type="date"
-              value={FormData.startDate}
+              value={formData.startDate}
               onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
               className="w-full mt-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm"
             />
@@ -936,7 +936,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
             <label className="text-[10px] font-black text-slate-600 uppercase">Fim</label>
             <input
               type="date"
-              value={FormData.endDate}
+              value={formData.endDate}
               onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
               className="w-full mt-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm"
             />
@@ -948,18 +948,18 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
         <button onClick={onClose} className="px-4 py-2 text-slate-500 text-sm">Cancelar</button>
         <button
           onClick={() => {
-            if (!FormData.name.trim()) return;
+            if (!formData.name.trim()) return;
             const newPhase: ConstructionPhase = {
               id: `p_${Date.now()}`,
-              name: FormData.name,
-              icon: FormData.icon,
-              color: FormData.color,
-              weight: FormData.weight,
+              name: formData.name,
+              icon: formData.icon,
+              color: formData.color,
+              weight: formData.weight,
               progress: 0,
               status: 'NOT_STARTED',
-              startDate: FormData.startDate,
-              endDate: FormData.endDate,
-              responsible: FormData.responsible,
+              startDate: formData.startDate,
+              endDate: formData.endDate,
+              responsible: formData.responsible,
               observations: '',
               subSteps: [],
             };

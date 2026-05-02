@@ -19,10 +19,10 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
     name: project.name,
     location: project.location,
     totalFloors: project.totalFloors,
-    basements: project.basements,
+    basements: project.basements ?? 0,
     hasLeisure: project.hasLeisure,
     hasAtrium: project.hasAtrium,
-    technicalAreas: project.technicalAreas || 0,
+    technicalAreas: project.technicalAreas ?? 0,
   });
   const [showFloorEdit, setShowFloorEdit] = useState(false);
   const floors = project.floors || [];
@@ -234,7 +234,7 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {project.floors.map(floor => (
+          {floors.map(floor => (
             <div 
               key={floor.id}
               className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl"

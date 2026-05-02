@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Truck, ClipboardCheck, CheckCircle2, Calendar as CalendarIcon, X } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { loadCalendarEvents, saveCalendarEvents } from '@/lib/auth';
-
-interface CalendarEvent {
-  day: number;
-  type: 'DELIVERY' | 'TASK';
-  title: string;
-  time: string;
-  status: 'PENDING' | 'COMPLETED';
-}
+import { loadCalendarEvents, saveCalendarEvents, CalendarEvent as CalendarEventType } from '@/lib/auth';
 
 interface Props {
   companyId: string;
@@ -17,7 +9,7 @@ interface Props {
 
 export default function ConstructionCalendar({ companyId }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', type: 'TASK' as 'DELIVERY' | 'TASK', day: 1, time: '08:00' });
 
@@ -25,7 +17,7 @@ export default function ConstructionCalendar({ companyId }: Props) {
     loadCalendarEvents(companyId).then(setEvents);
   }, [companyId]);
 
-  const handleSaveEvents = (newEvents: CalendarEvent[]) => {
+  const handleSaveEvents = (newEvents: CalendarEventType[]) => {
     setEvents(newEvents);
     saveCalendarEvents(companyId, newEvents);
   };
@@ -42,7 +34,7 @@ export default function ConstructionCalendar({ companyId }: Props) {
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
-  const calendarDays = [];
+  const calendarDays: (number | null)[] = [];
   for (let i = 0; i < firstDayOfMonth; i++) calendarDays.push(null);
   for (let i = 1; i <= daysInMonth(currentDate.getMonth(), currentDate.getFullYear()); i++) calendarDays.push(i);
 

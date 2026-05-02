@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Project, ConstructionPhase, BuildingConfig } from '@/types';
+import { Project, ConstructionPhase, BuildingConfig, Floor } from '@/types';
 
 // =====================
 // PROJECT DATA

@@ -65,11 +65,14 @@ export interface TeamMember {
 export interface CalendarEvent {
   id?: string;
   title: string;
-  date: string;
+  date?: string;
   type: string;
   description?: string;
   projectId?: string;
   company_id?: string;
+  day?: number;
+  time?: string;
+  status?: 'PENDING' | 'COMPLETED';
 }
 
 export interface Gargalo {
@@ -251,8 +254,8 @@ export async function loadProjects(companyId?: string): Promise<Project[]> {
 }
 
 export async function saveProject(project: Project): Promise<void> {
-  const { id, company_id, ...rest } = project;
-  const record = { ...rest, company_id: company_id ?? rest.company_id };
+  const { id, companyId, company_id, ...rest } = project;
+  const record = { ...rest, company_id: companyId ?? company_id };
   if (id) {
     await supabase.from('projects').upsert({ id, ...record });
   } else {
