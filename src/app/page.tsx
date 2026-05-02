@@ -577,8 +577,8 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
       setAllProjects(updatedProjects);
       saveProjects(updatedProjects);
       setCurrentProjectIndex(updatedProjects.length - 1);
-      setActiveProjectId(newProj.id);
-      saveProjectConfig(newProj.id, config);
+      setActiveProjectId(newProj.id ?? null);
+      saveProjectConfig(newProj.id ?? '', config);
       setToast({ message: "Obra criada a partir do prédio!", type: 'success' });
     }
   };
