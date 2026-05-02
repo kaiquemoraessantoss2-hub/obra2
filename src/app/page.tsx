@@ -631,7 +631,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
 
   const disciplineProgress = project && project.floors?.length ? projectDisciplines.map(name => {
     let total = 0, count = 0;
-    project.floors.forEach(f => {
+    (project.floors || []).forEach(f => {
       const s = f.services.find(svc => svc.name === name);
       if (s) { total += s.status === 'COMPLETED' ? 100 : s.status === 'IN_PROGRESS' ? 50 : 0; count++; }
     });
@@ -1475,10 +1475,10 @@ onRefresh={async () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <ReportCard title="Andamento por Andar" desc="Status de cada disciplina por pavimento" onClick={() => {
                            let csv = "Pavimento,Tipo,Disciplina,Status,Progresso\n";
-                           project?.floors.sort((a,b) => a.number - b.number).forEach(f => {
-                             f.services.forEach(s => { 
+                           (project?.floors || []).sort((a,b) => a.number - b.number).forEach(f => {
+                             f.services.forEach(s => {
                                const pct = s.status === 'COMPLETED' ? 100 : s.status === 'IN_PROGRESS' ? 50 : 0;
-                               csv += `${f.label},${f.type},${s.name},${s.status.replace('_',' ')},${pct}%\n`; 
+                               csv += `${f.label},${f.type},${s.name},${s.status.replace('_',' ')},${pct}%\n`;
                              });
                            });
                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1506,10 +1506,10 @@ onRefresh={async () => {
                         }}/>
                         <ReportCard title="Resumo Geral da Obra" desc="Planilha completa com todos os dados" onClick={() => {
                            const totalAndares = (project?.floors || []).length;
-                           const andaresConcluidos = project?.floors.filter(f => f.services.every(s => s.status === 'COMPLETED')).length || 0;
-                           const andaresEmObra = project?.floors.filter(f => f.services.some(s => s.status === 'IN_PROGRESS')).length || 0;
-                           const disciplinasConcluidas = project?.floors.reduce((acc, f) => acc + f.services.filter((s: any) => s.status === 'COMPLETED').length, 0) || 0;
-                           const totalDisciplinas = project?.floors.reduce((acc, f) => acc + f.services.length, 0) || 0;
+                           const andaresConcluidos = (project?.floors || []).filter(f => f.services.every(s => s.status === 'COMPLETED')).length || 0;
+                           const andaresEmObra = (project?.floors || []).filter(f => f.services.some(s => s.status === 'IN_PROGRESS')).length || 0;
+                           const disciplinasConcluidas = (project?.floors || []).reduce((acc, f) => acc + f.services.filter((s: any) => s.status === 'COMPLETED').length, 0) || 0;
+                           const totalDisciplinas = (project?.floors || []).reduce((acc, f) => acc + f.services.length, 0) || 0;
                            const fasesConcluidas = phases.filter(p => p.status === 'COMPLETED').length;
                            const fasesEmAndamento = phases.filter(p => p.status === 'IN_PROGRESS').length;
                            const subStepsConcluidas = phases.reduce((acc, p) => acc + p.subSteps.filter((s: any) => s.status === 'COMPLETED').length, 0);
@@ -1534,7 +1534,7 @@ onRefresh={async () => {
                            });
                            csv += `\nDETALHAMENTO POR ANDAR\n`;
                            csv += `Andar,Tipo,Elétrica,Hidráulica,Alvenaria,Revestimento\n`;
-                           project?.floors.sort((a,b) => a.number - b.number).forEach(f => {
+                           (project?.floors || []).sort((a,b) => a.number - b.number).forEach(f => {
                              const getStatus = (name: string) => {
                                const s = f.services.find(svc => svc.name === name);
                                return s?.status === 'COMPLETED' ? 'OK' : s?.status === 'IN_PROGRESS' ? 'AND' : 'PEN';
