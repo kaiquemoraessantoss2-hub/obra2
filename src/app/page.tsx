@@ -545,7 +545,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         step.id === subStepId ? { ...step, status: (newProgress === 100 ? 'COMPLETED' : 'IN_PROGRESS') as Status, progress: newProgress } : step
       );
       
-      const avgProgress = Math.round(updatedSubSteps.reduce((acc: number, s) => acc + s.progress, 0) / updatedSubSteps.length);
+      const avgProgress = Math.round(updatedSubSteps.reduce((acc: number, s: SubStep) => acc + s.progress, 0) / updatedSubSteps.length);
       const newStatus = avgProgress === 100 ? 'COMPLETED' : avgProgress > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
       
       return { ...phase, subSteps: updatedSubSteps, progress: avgProgress, status: newStatus as Status };
