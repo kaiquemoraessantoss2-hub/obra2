@@ -1,12 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// TESTE TEMPORÁRIO COM CHAVES DIRETAS
-const supabaseUrl = 'https://lxwbzshvnqwbypoflccz.supabase.co';
-const supabaseAnonKey = 'sb_publishable_eGpDdgB15CY7WugD7We_mg_fl24CSXG';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-console.log('🔌 Tentando conexão direta com Supabase:', supabaseUrl);
-
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
