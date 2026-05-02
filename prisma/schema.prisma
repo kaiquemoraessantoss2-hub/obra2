@@ -1,0 +1,213 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ServiceStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+enum FloorType {
+  BASEMENT
+  GROUND
+  REGULAR
+  LEISURE
+  TECHNICAL
+}
+
+enum Role {
+  ADMIN
+  ENGINEER
+  MASTER_OF_WORKS
+  VIEWER
+  CLIENT
+}
+
+enum MaterialCategory {
+  STRUCTURAL
+  FINISHING
+  ELECTRICAL
+  HYDRAULIC
+  TOOLS
+  SAFETY
+  OTHER
+}
+
+enum LogType {
+  PROGRESS_UPDATE
+  MATERIAL_DELIVERY
+  INCIDENT
+  INSPECTION
+  MEETING
+  OTHER
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  location    String?
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+  totalFloors Int
+  basements   Int      @default(0)
+  hasLeisure  Boolean  @default(false)
+  hasAtrium   Boolean  @default(false)
+  technicalAreas Int   @default(0)
+  status      ProjectStatus @default(PLANNING)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  floors      Floor[]
+  materials   Material[]
+  budgets     Budget[]
+  logs        Log[]
+  company     Company  @relation(fields: [companyId], references: [id])
+  companyId   String
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  phone         String?
+  address       String?
+  plan          String   @default("Básico")
+  monthlyValue Decimal  @default(0)
+  planStartDate DateTime?
+  planEndDate  DateTime?
+  billingStatus String @default("ACTIVE")
+  isPaused      Boolean  @default(false)
+  activeUsers   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  projects     Project[]
+  users        User[]
+}
+
+model Floor {
+  id          String   @id @default(cuid())
+  projectId   String
+  number      Int
+  label       String?
+  type        FloorType @default(REGULAR)
+  phase       String   @default("Structure")
+  project     Project  @relation(fields: [projectId], references: [id])
+  services    Service[]
+  inspections Inspection[]
+  logs        Log[]
+
+  @@unique([projectId, number])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  floorId     String
+  name       String
+  description String?
+  status      ServiceStatus @default(NOT_STARTED)
+  startDate   DateTime?
+  endDate     DateTime?
+  updatedAt   DateTime @updatedAt
+  floor       Floor    @relation(fields: [floorId], references: [id])
+  materialsUsed MaterialUsage[]
+}
+
+model Material {
+  id          String   @id @default(cuid())
+  projectId   String
+  name       String
+  category    MaterialCategory
+  unit        String
+  currentStock Decimal  @default(0)
+  minStock    Decimal  @default(0)
+  unitCost    Decimal
+  supplier    String?
+  project     Project  @relation(fields: [projectId], references: [id])
+  usages      MaterialUsage[]
+  logs        Log[]
+}
+
+model MaterialUsage {
+  id          String   @id @default(cuid())
+  materialId  String
+  serviceId  String
+  quantityUsed Decimal
+  usedAt     DateTime @default(now())
+  material   Material @relation(fields: [materialId], references: [id])
+  service   Service  @relation(fields: [serviceId], references: [id])
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  projectId   String
+  category    String
+  description String?
+  plannedCost Decimal
+  actualCost  Decimal  @default(0)
+  variance    Decimal  @default(0)
+  project     Project  @relation(fields: [projectId], references: [id])
+  updatedAt   DateTime @updatedAt
+}
+
+model Log {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  type        LogType  @default(OTHER)
+  title       String
+  description String?
+  timestamp   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+  floorId     String?
+  floor      Floor?   @relation(fields: [floorId], references: [id])
+  materialId  String?
+  material   Material? @relation(fields: [materialId], references: [id])
+  photoUrl    String?
+}
+
+model Inspection {
+  id          String   @id @default(cuid())
+  floorId     String
+  inspectorId String
+  date        DateTime
+  type        String
+  status      String
+  notes       String?
+  floor       Floor    @relation(fields: [floorId], references: [id])
+  inspector   User     @relation(fields: [inspectorId], references: [id])
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(ENGINEER)
+  companyId   String
+  company    Company  @relation(fields: [companyId], references: [id])
+  logs        Log[]
+  inspections Inspection[]
+}
