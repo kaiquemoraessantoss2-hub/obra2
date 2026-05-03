@@ -81,7 +81,6 @@ export default function GlobalApplication() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
-  const [isAddingProject, setIsAddingProject] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -480,72 +479,7 @@ export default function GlobalApplication() {
     }
   };
 
-  const createComplexProject = (data: any) => {
-    const floors: Floor[] = [];
-    const disciplines = ['Elétrica', 'Hidráulica', 'Revestimento', 'Alvenaria'];
-    const createSvc = (fId: string) => disciplines.map((d, di) => ({ 
-      id: `svc_${fId}_${Date.now()}_${di}`, 
-      name: d, 
-      status: 'NOT_STARTED' as Status 
-    }));
-    
-    for (let i = 0; i < data.basements; i++) {
-      const fId = newId();
-      floors.push({
-        id: fId, 
-        number: -i - 1, 
-        label: `Subsolo ${i + 1}`, 
-        type: 'BASEMENT', 
-        phase: 'Structure', 
-        services: createSvc(fId) 
-      });
-    }
-    
-    const groundId = newId();
-    floors.push({ 
-      id: groundId, 
-      number: 0, 
-      label: 'Térreo', 
-      type: 'GROUND', 
-      phase: 'Structure', 
-      services: createSvc(groundId) 
-    });
-    
-    for (let i = 1; i <= data.totalFloors; i++) {
-      const fId = newId();
-      floors.push({
-        id: fId, 
-        number: i, 
-        label: `${i}º Andar`, 
-        type: 'REGULAR', 
-        phase: 'Masonry', 
-        services: createSvc(fId) 
-      });
-    }
-    const newProj: Project = { 
-      id: newId(), 
-      companyId: currentViewCompanyId, 
-      name: data.name, 
-      location: 'Localização Padrão', 
-      totalFloors: data.totalFloors, 
-      basements: data.basements, 
-      hasLeisure: true, 
-      hasAtrium: false, 
-      technicalAreas: 0, 
-      floors,
-      phases: [] 
-    };
-    const updatedProjects = [...allProjects, newProj];
-    setAllProjects(updatedProjects);
-    saveProjects(updatedProjects);
-    setCurrentProjectIndex(updatedProjects.length - 1);
-    setBuildingConfig(null);
-    setPhases([]);
-    setIsAddingProject(false);
-    setToast({ message: "Obra criada!", type: 'success' });
-  };
-
-const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!project) return;
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1077,23 +1011,6 @@ if (currentMember) {
         </div>
       )}
 
-      {isAddingProject && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-          <div className="glass-card w-full max-w-lg p-12 rounded-[40px] border-white/5 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600" />
-             <h2 className="text-2xl font-black text-white mb-8">Nova Obra Premium</h2>
-             <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); createComplexProject({ name: fd.get('name'), floors: Number(fd.get('floors')), basements: Number(fd.get('basements')) }); }} className="space-y-6">
-                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 ml-1 uppercase">Identificação</label><input required name="name" className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all" placeholder="Nome do Empreendimento" /></div>
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 ml-1 uppercase">Andares</label><input name="floors" type="number" defaultValue={10} className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-4 text-white font-bold" /></div>
-                   <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 ml-1 uppercase">Subsolos</label><input name="basements" type="number" defaultValue={2} className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-4 text-white font-bold" /></div>
-                </div>
-                <div className="flex gap-4 pt-6"><button type="button" onClick={() => setIsAddingProject(false)} className="flex-1 py-4 text-slate-500 font-black text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-2 btn-primary">Gerar Estrutura</button></div>
-             </form>
-          </div>
-        </div>
-      )}
-
       {isAddingMember && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
           <div className="glass-card w-full max-w-md p-10 rounded-[40px] border-white/5 relative overflow-hidden">
@@ -1271,7 +1188,7 @@ onRefresh={async () => {
                          <Upload size={16} className="group-hover:-translate-y-1 transition-transform" /> 
                          Importar
                       </button>
-                      <button onClick={() => setIsAddingProject(true)} className="btn-primary flex items-center gap-2 shadow-blue-600/40">
+                      <button onClick={() => setIsConfigModalOpen(true)} className="btn-primary flex items-center gap-2 shadow-blue-600/40">
                          <Plus size={18}/> Nova Obra
                       </button>
 </div>
@@ -1283,7 +1200,7 @@ onRefresh={async () => {
                         projects={companyProjects}
                         activeProjectId={activeProjectId}
                         onSelectProject={selectProject}
-                        onCreateProject={() => setIsAddingProject(true)}
+                        onCreateProject={() => setIsConfigModalOpen(true)}
                       />
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1503,7 +1420,7 @@ onRefresh={async () => {
                           <div className="col-span-full glass-card p-12 rounded-[40px] text-center">
                             <h3 className="text-xl font-black text-white mb-4">Nenhum projeto encontrado</h3>
                             <p className="text-slate-500 mb-6">Crie seu primeiro projeto para começar</p>
-                            <button onClick={() => setIsAddingProject(true)} className="btn-primary">Criar Projeto</button>
+                            <button onClick={() => setIsConfigModalOpen(true)} className="btn-primary">Criar Projeto</button>
                           </div>
                         ) : (
                           companyProjects.map((p, i) => (
