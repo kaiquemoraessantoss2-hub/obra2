@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Building2, MapPin, Layers, Home, Waves, Sun, Clock, Hash, Users, X, AlertTriangle, Check } from 'lucide-react';
 import { BuildingConfig, Floor, FloorType } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, newId } from '@/lib/utils';
 
 interface BuildingConfigModalProps {
   isOpen: boolean;
@@ -79,11 +79,10 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
 
   const generateFloors = (): Floor[] => {
     const floors: Floor[] = [];
-    let floorId = 0;
 
     for (let i = formData.basements; i >= 1; i--) {
       floors.push({
-        id: `f_${floorId++}`,
+        id: newId(),
         number: -i,
         label: `Subsolo ${i}`,
         type: 'BASEMENT',
@@ -93,7 +92,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
     }
 
     floors.push({
-      id: `f_${floorId++}`,
+      id: newId(),
       number: 0,
       label: 'Térreo',
       type: 'GROUND',
@@ -103,19 +102,18 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
 
     if (formData.hasLeisure) {
       floors.push({
-        id: `f_${floorId++}`,
+        id: newId(),
         number: 1,
         label: 'Lazer',
         type: 'LEISURE',
         phase: 'Finishing',
         services: [],
       });
-      floorId++;
     }
 
     for (let i = 1; i <= formData.totalFloors; i++) {
       floors.push({
-        id: `f_${floorId++}`,
+        id: newId(),
         number: formData.hasLeisure ? i + 1 : i,
         label: `${formData.hasLeisure ? i + 1 : i}º Andar`,
         type: 'REGULAR',
@@ -126,7 +124,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
 
     if (formData.hasAtrium) {
       floors.push({
-        id: `f_${floorId++}`,
+        id: newId(),
         number: floors.length,
         label: 'Átrio',
         type: 'ATRIUM',
@@ -137,7 +135,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
 
     if (formData.hasRooftop) {
       floors.push({
-        id: `f_${floorId++}`,
+        id: newId(),
         number: floors.length + 1,
         label: 'Cobertura',
         type: 'ROOFTOP',
@@ -148,7 +146,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
 
     for (let i = 1; i <= formData.technicalAreas; i++) {
       floors.push({
-        id: `f_${floorId++}`,
+        id: newId(),
         number: floors.length + 1,
         label: i === 1 ? 'Área Técnica' : `Área Técnica ${i}`,
         type: 'TECHNICAL',

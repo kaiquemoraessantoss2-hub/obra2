@@ -70,7 +70,7 @@ import EmptyPhaseState from '@/components/EmptyPhaseState';
 import { ModuleGuard, TeamPage, LoginPage, PendenciasSection, MedicaoObraSection } from '@/components/team';
 import { Floor, Status, User, BuildingConfig, ConstructionPhase, FloorExecution, SubStep } from '@/types';
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
-import { getProgressPercentage, cn } from '@/lib/utils';
+import { getProgressPercentage, cn, newId } from '@/lib/utils';
 import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, signOut, Company, Project } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -213,7 +213,7 @@ export default function GlobalApplication() {
     
     const typedProjects: Project[] = storedProjects.map((p: any) => ({
       ...p,
-      id: p.id || `proj_${Date.now()}`,
+      id: p.id || newId(),
       companyId: p.companyId || p.company_id || '',
       name: p.name || 'Novo Projeto',
       location: p.location || '',
@@ -422,7 +422,7 @@ export default function GlobalApplication() {
       // loadInitialData runs before auth is established, so RLS returns empty on new devices.
       const freshProjects = await loadProjects(user.companyId);
       const typedProjects: Project[] = freshProjects.map((p: any) => ({
-        id: p.id || `proj_${Date.now()}`,
+        id: p.id || newId(),
         companyId: p.company_id || p.companyId || '',
         name: p.name || 'Novo Projeto',
         location: p.location || '',
@@ -485,8 +485,8 @@ export default function GlobalApplication() {
     }));
     
     for (let i = 0; i < data.basements; i++) {
-      const fId = `b_${Date.now()}_${i}`;
-      floors.push({ 
+      const fId = newId();
+      floors.push({
         id: fId, 
         number: -i - 1, 
         label: `Subsolo ${i + 1}`, 
@@ -496,7 +496,7 @@ export default function GlobalApplication() {
       });
     }
     
-    const groundId = `ground_${Date.now()}`;
+    const groundId = newId();
     floors.push({ 
       id: groundId, 
       number: 0, 
@@ -507,8 +507,8 @@ export default function GlobalApplication() {
     });
     
     for (let i = 1; i <= data.totalFloors; i++) {
-      const fId = `f_${Date.now()}_${i}`;
-      floors.push({ 
+      const fId = newId();
+      floors.push({
         id: fId, 
         number: i, 
         label: `${i}º Andar`, 
@@ -518,7 +518,7 @@ export default function GlobalApplication() {
       });
     }
     const newProj: Project = { 
-      id: `p_${Date.now()}`, 
+      id: newId(), 
       companyId: currentViewCompanyId, 
       name: data.name, 
       location: 'Localização Padrão', 
@@ -625,7 +625,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
       setToast({ message: "Prédio configurado!", type: 'success' });
     } else {
       const newProj: Project = {
-        id: `p_${Date.now()}`,
+        id: newId(),
         companyId: currentViewCompanyId,
         name: config.name,
         location: config.address,

@@ -21,3 +21,18 @@ export function getProgressPercentage(services: Service[] | undefined | null) {
   const inProgress = services.filter(s => s.status === 'IN_PROGRESS').length;
   return Math.round(((completed * 1) + (inProgress * 0.5)) / services.length * 100);
 }
+
+// Gera um UUID v4 válido — necessário porque as tabelas Postgres
+// (projects, floors, project_phases) usam `uuid` como chave primária.
+// Strings tipo `p_${Date.now()}` são rejeitadas pelo banco.
+export function newId(): string {
+  if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+    return (crypto as any).randomUUID();
+  }
+  // Fallback para ambientes sem crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}

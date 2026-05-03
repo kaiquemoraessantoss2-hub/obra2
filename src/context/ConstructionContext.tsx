@@ -5,6 +5,7 @@ import { ConstructionPhase, SubStep, Status } from '../types';
 import { calculatePhaseProgress } from '../lib/constructionPhasesMock';
 import { saveProjectPhases, loadProjectPhases } from '../lib/projectStorage';
 import { supabase } from '../lib/supabase';
+import { newId } from '../lib/utils';
 
 interface ConstructionContextType {
   phases: ConstructionPhase[];
@@ -162,7 +163,7 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   }, [projectId]);
 
   const addPhase = useCallback((newPhase: Omit<ConstructionPhase, 'id'>) => {
-    setPhases(prev => [...prev, { ...newPhase, id: `p_${Date.now()}` }]);
+    setPhases(prev => [...prev, { ...newPhase, id: newId() }]);
   }, []);
 
   const removePhase = useCallback((phaseId: string) => {

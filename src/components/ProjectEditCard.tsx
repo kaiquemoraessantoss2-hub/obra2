@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Pencil, X, Check, MapPin, Building, Trash2, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Project, Floor, Status } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, newId } from '@/lib/utils';
 import { saveProject } from '@/lib/auth';
 
 interface Props {
@@ -67,7 +67,7 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
                  : `${newNumber}º Andar`;
 
     const newFloor: Floor = {
-      id: `f_${Date.now()}`,
+      id: newId(),
       number: newNumber,
       label,
       type,

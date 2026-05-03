@@ -6,7 +6,7 @@ import {
   Plus, Pencil, RotateCcw, X, Check, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import { ConstructionPhase, SubStep, Status } from '../types';
-import { cn } from '../lib/utils';
+import { cn, newId } from '../lib/utils';
 
 type LucideIcon = React.ComponentType<{ className?: string; size?: number }>;
 
@@ -25,17 +25,17 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
 const getTemplatePhases = (): ConstructionPhase[] => {
   const timestamp = Date.now();
   return [
-    { id: `p_${timestamp}_1`, name: 'PRÉ-OBRA', icon: 'FileText', color: 'bg-blue-500', progress: 0, status: 'NOT_STARTED', weight: 5, startDate: '', endDate: '', responsible: '', observations: '', subSteps: [
+    { id: newId(), name: 'PRÉ-OBRA', icon: 'FileText', color: 'bg-blue-500', progress: 0, status: 'NOT_STARTED', weight: 5, startDate: '', endDate: '', responsible: '', observations: '', subSteps: [
       { id: `s_${timestamp}_1`, name: 'Projeto Executivo', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
       { id: `s_${timestamp}_2`, name: 'Aprovação', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
       { id: `s_${timestamp}_3`, name: 'Licenciamento', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
     ]},
-    { id: `p_${timestamp}_2`, name: 'FUNDAÇÃO', icon: 'Building', color: 'bg-amber-500', progress: 0, status: 'NOT_STARTED', weight: 10, startDate: '', endDate: '', responsible: '', observations: '', subSteps: [
+    { id: newId(), name: 'FUNDAÇÃO', icon: 'Building', color: 'bg-amber-500', progress: 0, status: 'NOT_STARTED', weight: 10, startDate: '', endDate: '', responsible: '', observations: '', subSteps: [
       { id: `s_${timestamp}_4`, name: 'Escavação', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
       { id: `s_${timestamp}_5`, name: 'Fundação', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
       { id: `s_${timestamp}_6`, name: 'Impermeabilização', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
     ]},
-    { id: `p_${timestamp}_3`, name: 'ESTRUTURA', icon: 'Building', color: 'bg-emerald-500', progress: 0, status: 'NOT_STARTED', weight: 20, startDate: '', endDate: '', responsible: '', observations: '', subSteps: [
+    { id: newId(), name: 'ESTRUTURA', icon: 'Building', color: 'bg-emerald-500', progress: 0, status: 'NOT_STARTED', weight: 20, startDate: '', endDate: '', responsible: '', observations: '', subSteps: [
       { id: `s_${timestamp}_7`, name: 'Pilares', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
       { id: `s_${timestamp}_8`, name: 'Lajes', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
       { id: `s_${timestamp}_9`, name: 'Escada/Rampa', progress: 0, status: 'NOT_STARTED', observations: '', responsible: '', hasFloorBreakdown: false, floorExecutions: [] },
@@ -950,7 +950,7 @@ function AddPhaseForm({ onClose, onAdd }: { onClose: () => void; onAdd?: (phase:
           onClick={() => {
             if (!formData.name.trim()) return;
             const newPhase: ConstructionPhase = {
-              id: `p_${Date.now()}`,
+              id: newId(),
               name: formData.name,
               icon: formData.icon,
               color: formData.color,
