@@ -66,3 +66,42 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ users });
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    await verifyAdmin(request);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erro';
+    const status = msg === 'Sem permissão' ? 403 : 401;
+    return NextResponse.json({ error: msg }, { status });
+  }
+
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!serviceRoleKey || serviceRoleKey === 'COLE_SUA_SERVICE_ROLE_KEY_AQUI' || !supabaseUrl) {
+    return NextResponse.json({ error: 'Service role key não configurada' }, { status: 500 });
+  }
+
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const body = await request.json();
+  const { userId, isActive } = body;
+
+  if (!userId || typeof isActive !== 'boolean') {
+    return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
+  }
+
+  const { error } = await adminClient
+    .from('profiles')
+    .update({ is_active: isActive })
+    .eq('id', userId);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

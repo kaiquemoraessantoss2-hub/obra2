@@ -150,14 +150,17 @@ export async function getAllUsers(): Promise<StoredUser[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, role, company_id, is_active');
-  if (error || !data) return [];
-  return data.map(p => ({
+  if (error) {
+    console.error('Error fetching users:', error);
+    return [];
+  }
+  return (data || []).map(p => ({
     id: p.id,
     email: '',
-    name: p.name,
-    role: p.role as StoredUser['role'],
-    companyId: p.company_id,
-    isActive: p.is_active,
+    name: p.name || '',
+    role: (p.role || 'ADMIN') as StoredUser['role'],
+    companyId: p.company_id || '',
+    isActive: p.is_active === true,
   }));
 }
 
@@ -195,11 +198,18 @@ export async function saveUser(user: Omit<StoredUser, 'id'> & { password: string
 }
 
 export async function updateUserActive(userId: string, isActive: boolean): Promise<boolean> {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ is_active: isActive })
-    .eq('id', userId);
-  return !error;
+  try {
+    const res = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, isActive })
+    });
+    const data = await res.json();
+    return res.ok && data.success;
+  } catch (error) {
+    console.error('Error updating user active:', error);
+    return false;
+  }
 }
 
 export async function deleteUser(userId: string): Promise<boolean> {
@@ -251,14 +261,25 @@ export async function deleteCompany(companyId: string): Promise<boolean> {
 // =====================
 
 export async function loadProjects(companyId?: string): Promise<Project[]> {
-  let query = supabase.from('projects').select('*, floors(*), project_phases(*)');
+  let query = supabase.from('projects').select(`
+    *,
+    floors (
+      *,
+      services (*)
+    ),
+    project_phases (*)
+  `);
+  
   if (companyId) query = query.eq('company_id', companyId);
+  
   const { data, error } = await query;
   if (error) {
     console.error('Error loading projects:', error);
     return [];
   }
   
+  console.log(`Loaded ${data?.length || 0} projects`);
+
   return (data ?? []).map(p => ({
     ...p,
     companyId: p.company_id,
@@ -275,10 +296,14 @@ export async function loadProjects(companyId?: string): Promise<Project[]> {
       dependsOn: ph.depends_on,
       subSteps: ph.sub_steps,
       sortOrder: ph.sort_order
-    })).sort((a: any, b: any) => a.sortOrder - b.sortOrder),
+    })).sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
     floors: (p.floors || []).map((f: any) => ({
       ...f,
-      projectId: f.project_id
+      projectId: f.project_id,
+      services: (f.services || []).map((s: any) => ({
+        ...s,
+        floorId: s.floor_id
+      }))
     })).sort((a: any, b: any) => a.number - b.number)
   })) as Project[];
 }
@@ -311,10 +336,9 @@ export async function saveProject(project: Project): Promise<void> {
 
   // Sincronizar pavimentos
   if (floors && floors.length > 0) {
-    await supabase.from('floors').delete().eq('project_id', id);
-    await supabase.from('floors').insert(
+    const { error: floorsError } = await supabase.from('floors').upsert(
       floors.map(f => ({
-        id: f.id,
+        id: f.id, 
         project_id: id,
         number: f.number,
         label: f.label,
@@ -322,14 +346,29 @@ export async function saveProject(project: Project): Promise<void> {
         phase: f.phase,
       }))
     );
+    if (floorsError) console.error('Error saving floors:', floorsError);
+
+    // Sincronizar serviços de cada pavimento
+    for (const f of floors) {
+      if (f.services && f.services.length > 0) {
+        const { error: servicesError } = await supabase.from('services').upsert(
+          f.services.map((s: any) => ({
+            id: s.id,
+            floor_id: f.id,
+            name: s.name,
+            status: s.status
+          }))
+        );
+        if (servicesError) console.error('Error saving services:', servicesError);
+      }
+    }
   }
 
   // Sincronizar fases (Cronograma)
   if (phases && phases.length > 0) {
-    await supabase.from('project_phases').delete().eq('project_id', id);
-    await supabase.from('project_phases').insert(
+    const { error: phasesError } = await supabase.from('project_phases').upsert(
       phases.map((ph, index) => ({
-        id: ph.id,
+        id: ph.id, 
         project_id: id,
         name: ph.name,
         icon: ph.icon,
@@ -353,6 +392,7 @@ export async function saveProject(project: Project): Promise<void> {
         updated_at: new Date().toISOString()
       }))
     );
+    if (phasesError) console.error('Error saving phases:', phasesError);
   }
 }
 

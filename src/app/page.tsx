@@ -205,6 +205,7 @@ export default function GlobalApplication() {
     setCompanies(storedCompanies);
     setAllProjects(typedProjects);
     setAllUsers(users);
+    setCurrentViewCompanyId(currentUser.companyId);
     setIsInitialized(true);
     
     if (typedProjects.length > 0) {
@@ -476,10 +477,45 @@ export default function GlobalApplication() {
   const createComplexProject = (data: any) => {
     const floors: Floor[] = [];
     const disciplines = ['Elétrica', 'Hidráulica', 'Revestimento', 'Alvenaria'];
-    const createSvc = (fId: string) => disciplines.map((d, di) => ({ id: `svc_${fId}_${di}`, name: d, status: 'NOT_STARTED' as Status }));
-    for (let i = 0; i < data.basements; i++) floors.push({ id: `b_${i}`, number: -i - 1, label: `Subsolo ${i + 1}`, type: 'BASEMENT', phase: 'Structure', services: createSvc(`b_${i}`) });
-    floors.push({ id: 'ground', number: 0, label: 'Térreo', type: 'GROUND', phase: 'Structure', services: createSvc('ground') });
-    for (let i = 1; i <= data.totalFloors; i++) floors.push({ id: `f_${i}`, number: i, label: `${i}º Andar`, type: 'REGULAR', phase: 'Masonry', services: createSvc(`f_${i}`) });
+    const createSvc = (fId: string) => disciplines.map((d, di) => ({ 
+      id: `svc_${fId}_${Date.now()}_${di}`, 
+      name: d, 
+      status: 'NOT_STARTED' as Status 
+    }));
+    
+    for (let i = 0; i < data.basements; i++) {
+      const fId = `b_${Date.now()}_${i}`;
+      floors.push({ 
+        id: fId, 
+        number: -i - 1, 
+        label: `Subsolo ${i + 1}`, 
+        type: 'BASEMENT', 
+        phase: 'Structure', 
+        services: createSvc(fId) 
+      });
+    }
+    
+    const groundId = `ground_${Date.now()}`;
+    floors.push({ 
+      id: groundId, 
+      number: 0, 
+      label: 'Térreo', 
+      type: 'GROUND', 
+      phase: 'Structure', 
+      services: createSvc(groundId) 
+    });
+    
+    for (let i = 1; i <= data.totalFloors; i++) {
+      const fId = `f_${Date.now()}_${i}`;
+      floors.push({ 
+        id: fId, 
+        number: i, 
+        label: `${i}º Andar`, 
+        type: 'REGULAR', 
+        phase: 'Masonry', 
+        services: createSvc(fId) 
+      });
+    }
     const newProj: Project = { 
       id: `p_${Date.now()}`, 
       companyId: currentViewCompanyId, 
