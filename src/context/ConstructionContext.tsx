@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { ConstructionPhase, SubStep, Status } from '../types';
 import { calculatePhaseProgress } from '../lib/constructionPhasesMock';
 import { saveProjectPhases, loadProjectPhases } from '../lib/projectStorage';
+import { supabase } from '../lib/supabase';
 
 interface ConstructionContextType {
   phases: ConstructionPhase[];
@@ -48,6 +49,32 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
     if (!isInitialized || !projectId) return;
     saveProjectPhases(projectId, phases);
   }, [phases, isInitialized, projectId]);
+
+  // Realtime subscription for synchronization
+  useEffect(() => {
+    if (!projectId) return;
+
+    const channel = supabase
+      .channel(`context-sync-${projectId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'project_phases',
+        filter: `project_id=eq.${projectId}`
+      }, async () => {
+        const loaded = await loadProjectPhases(projectId);
+        if (loaded) {
+          // Compare with current state to avoid loops if needed, 
+          // but setPhases is usually safe if data is truly different
+          setPhases(loaded);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId]);
 
   const recalculatePhaseProgress = useCallback((phase: ConstructionPhase): number => {
     return calculatePhaseProgress(phase);

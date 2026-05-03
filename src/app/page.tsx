@@ -150,26 +150,28 @@ export default function GlobalApplication() {
 
   const handleAddServiceToFloor = (floorId: string, serviceName: string) => {
     if (!project) return;
-    setAllProjects(allProjects.map(ap => ap.id === project.id ? {
+    const updatedProjects = allProjects.map(ap => ap.id === project.id ? {
       ...ap,
       floors: (ap.floors || []).map(f => f.id === floorId ? {
         ...f,
         services: [...(f.services || []), { id: `svc_${f.id}_${Date.now()}`, name: serviceName, status: 'NOT_STARTED' as Status }]
       } : f)
-    } : ap));
-    saveProjects(allProjects);
+    } : ap);
+    setAllProjects(updatedProjects);
+    saveProjects(updatedProjects);
   };
 
   const handleRemoveServiceFromFloor = (floorId: string, serviceId: string, serviceName: string) => {
     if (!project || !confirm(`Remover "${serviceName}" deste andar?`)) return;
-    setAllProjects(allProjects.map(ap => ap.id === project.id ? {
+    const updatedProjects = allProjects.map(ap => ap.id === project.id ? {
       ...ap,
       floors: (ap.floors || []).map(f => f.id === floorId ? {
         ...f,
         services: (f.services || []).filter((s: any) => s.id !== serviceId)
       } : f)
-    } : ap));
-    saveProjects(allProjects);
+    } : ap);
+    setAllProjects(updatedProjects);
+    saveProjects(updatedProjects);
   };
 
   useEffect(() => {
@@ -317,6 +319,43 @@ export default function GlobalApplication() {
     };
 
     loadData();
+
+    // Inscrição em tempo real para sincronizar múltiplos navegadores
+    const channel = supabase
+      .channel(`project-sync-${activeProjectId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'project_phases', 
+        filter: `project_id=eq.${activeProjectId}` 
+      }, async () => {
+        const freshPhases = await loadProjectPhases(activeProjectId);
+        setPhases(freshPhases || []);
+        if (freshPhases && freshPhases.length > 0) setShowEmptyPhaseState(false);
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'building_configs', 
+        filter: `project_id=eq.${activeProjectId}` 
+      }, async () => {
+        const freshConfig = await loadProjectConfig(activeProjectId);
+        setBuildingConfig(freshConfig);
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'projects', 
+        filter: `id=eq.${activeProjectId}` 
+      }, async (payload: any) => {
+        // Atualiza o projeto na lista local se houver mudanças
+        setAllProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, ...payload.new } : p));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [activeProjectId]);
 
   useEffect(() => {
@@ -510,7 +549,9 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         }
       });
       
-      setAllProjects(prev => prev.map(p => p.id === project.id ? { ...p, floors: updatedFloors } : p));
+      const updated = allProjects.map(p => p.id === project.id ? { ...p, floors: updatedFloors } : p);
+      setAllProjects(updated);
+      saveProjects(updated);
       setToast({ message: "CSV importado com sucesso!", type: 'success' });
     };
     reader.readAsText(file);
@@ -538,7 +579,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
   const handleUpdateSubStep = (phaseId: string, subStepId: string, newProgress: number) => {
     if (!project) return;
     
-    const updatedPhases = project.phases?.map(phase => {
+    const updatedPhases = phases.map(phase => {
       if (phase.id !== phaseId) return phase;
       
       const updatedSubSteps = phase.subSteps.map((step: SubStep) =>
@@ -551,7 +592,10 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
       return { ...phase, subSteps: updatedSubSteps, progress: avgProgress, status: newStatus as Status };
     });
 
-    setAllProjects(allProjects.map(ap => ap.id === project.id ? { ...ap, phases: updatedPhases } : ap));
+    setPhases(updatedPhases);
+    if (activeProjectId) {
+      saveProjectPhases(activeProjectId, updatedPhases);
+    }
   };
 
   const handleSaveBuildingConfig = (config: BuildingConfig) => {
@@ -1268,31 +1312,25 @@ onRefresh={async () => {
                       <ConstructionTimeline 
                         phases={phases}
                         onAddPhase={(phase) => {
-                          setPhases(prev => {
-                            const updated = [...prev, phase];
-                            if (activeProjectId) {
-                              saveProjectPhases(activeProjectId, updated);
-                            }
-                            return updated;
-                          });
+                          const updated = [...phases, phase];
+                          setPhases(updated);
+                          if (activeProjectId) {
+                            saveProjectPhases(activeProjectId, updated);
+                          }
                         }}
                         onRemovePhase={(phaseId) => {
-                          setPhases(prev => {
-                            const updated = prev.filter(p => p.id !== phaseId);
-                            if (activeProjectId) {
-                              saveProjectPhases(activeProjectId, updated);
-                            }
-                            return updated;
-                          });
+                          const updated = phases.filter(p => p.id !== phaseId);
+                          setPhases(updated);
+                          if (activeProjectId) {
+                            saveProjectPhases(activeProjectId, updated);
+                          }
                         }}
                         onUpdatePhase={(phaseId, data) => {
-                          setPhases(prev => {
-                            const updated = prev.map(p => p.id === phaseId ? { ...p, ...data } : p);
-                            if (activeProjectId) {
-                              saveProjectPhases(activeProjectId, updated);
-                            }
-                            return updated;
-                          });
+                          const updated = phases.map(p => p.id === phaseId ? { ...p, ...data } : p);
+                          setPhases(updated);
+                          if (activeProjectId) {
+                            saveProjectPhases(activeProjectId, updated);
+                          }
                         }}
                       />
                     </ModuleGuard>
@@ -1389,15 +1427,16 @@ onRefresh={async () => {
                                         onClick={() => {
                                           const nextStatus: Status = status === 'NOT_STARTED' ? 'IN_PROGRESS' : status === 'IN_PROGRESS' ? 'COMPLETED' : 'NOT_STARTED';
                                           if (project) {
-                                            setAllProjects(allProjects.map(ap => ap.id === project.id ? { 
+                                            const updatedProjects = allProjects.map(ap => ap.id === project.id ? { 
                                               ...ap, 
                                               floors: (ap.floors || []).map(f => {
                                                 if (f.id !== floor.id) return f;
                                                 const services = (f.services || []).map(s => s.name === disc ? { ...s, status: nextStatus } : s);
                                                 return { ...f, services };
                                               }) 
-                                            } : ap));
-                                            saveProjects(allProjects);
+                                            } : ap);
+                                            setAllProjects(updatedProjects);
+                                            saveProjects(updatedProjects);
                                           }
                                         }}
                                         className={cn(
@@ -1431,8 +1470,9 @@ onRefresh={async () => {
                        project={companyProjects[editingProjectIndex]}
                        companyId={currentViewCompanyId}
                        onUpdate={(p) => {
-                         setAllProjects(allProjects.map(ap => ap.id === p.id ? p : ap));
-                         saveProject(p);
+                         const updated = allProjects.map(ap => ap.id === p.id ? p : ap);
+                         setAllProjects(updated);
+                         saveProjects(updated);
                        }}
                        onDelete={() => handleDeleteProject(companyProjects[editingProjectIndex].id)}
                        onClose={() => setEditingProjectIndex(null)}

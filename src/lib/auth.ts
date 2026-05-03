@@ -246,27 +246,75 @@ export async function deleteCompany(companyId: string): Promise<boolean> {
 // =====================
 
 export async function loadProjects(companyId?: string): Promise<Project[]> {
-  let query = supabase.from('projects').select('*');
+  let query = supabase.from('projects').select('*, floors(*)');
   if (companyId) query = query.eq('company_id', companyId);
   const { data, error } = await query;
-  if (error) return [];
-  return data ?? [];
+  if (error) {
+    console.error('Error loading projects:', error);
+    return [];
+  }
+  
+  return (data ?? []).map(p => ({
+    ...p,
+    companyId: p.company_id,
+    totalFloors: p.total_floors,
+    hasLeisure: p.has_leisure,
+    hasAtrium: p.has_atrium,
+    technicalAreas: p.technical_areas,
+    // Map nested floors to camelCase if needed
+    floors: (p.floors || []).map((f: any) => ({
+      ...f,
+      projectId: f.project_id
+    }))
+  })) as Project[];
 }
 
 export async function saveProject(project: Project): Promise<void> {
-  const { id, companyId, company_id, ...rest } = project;
-  const record = { ...rest, company_id: companyId ?? company_id };
-  if (id) {
-    await supabase.from('projects').upsert({ id, ...record });
-  } else {
-    await supabase.from('projects').insert(record);
+  const { id, companyId, company_id, floors, phases, ...rest } = project;
+  const company_id_final = companyId ?? company_id;
+  
+  if (!id) return;
+
+  const record = { 
+    id,
+    name: rest.name,
+    location: rest.location,
+    total_floors: rest.totalFloors,
+    basements: rest.basements,
+    has_leisure: rest.hasLeisure,
+    has_atrium: rest.hasAtrium,
+    technical_areas: rest.technicalAreas,
+    company_id: company_id_final,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error: upsertError } = await supabase.from('projects').upsert(record);
+  
+  if (upsertError) {
+    console.error('Error saving project:', upsertError);
+    return;
+  }
+
+  // Sincronizar pavimentos
+  if (floors && floors.length > 0) {
+    // Para simplificar, deletamos e inserimos novamente
+    await supabase.from('floors').delete().eq('project_id', id);
+    await supabase.from('floors').insert(
+      floors.map(f => ({
+        id: f.id,
+        project_id: id,
+        number: f.number,
+        label: f.label,
+        type: f.type,
+        phase: f.phase,
+      }))
+    );
   }
 }
 
 export async function saveProjects(projects: Project[]): Promise<void> {
-  for (const project of projects) {
-    await saveProject(project);
-  }
+  // Use Promise.all for better performance, but ensure they don't conflict
+  await Promise.all(projects.map(p => saveProject(p)));
 }
 
 export async function deleteProjectsByCompany(companyId: string): Promise<boolean> {
