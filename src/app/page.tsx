@@ -99,14 +99,38 @@ export default function GlobalApplication() {
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
   const [editingExecution, setEditingExecution] = useState<{ phaseId: string; subStepId: string; execution: FloorExecution } | null>(null);
 
-  // Clear stale sessions — fires SIGNED_OUT when a stored refresh token is invalid
+  // Handle authentication state changes
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const handleAuth = async (session: any) => {
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile) {
+          setCurrentUser({
+            id: profile.id,
+            email: session.user.email || '',
+            name: profile.name || session.user.email || '',
+            role: (profile.role as any) || 'ADMIN',
+            companyId: profile.company_id || '',
+            isActive: profile.is_active ?? true
+          });
+        }
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         setCurrentMember(null);
+      } else {
+        handleAuth(session);
       }
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -216,14 +240,13 @@ export default function GlobalApplication() {
       setActiveProjectId(firstProject.id);
       setCurrentProjectIndex(projectIdx >= 0 ? projectIdx : 0);
       
-      const [savedPhases, savedConfig] = await Promise.all([
-        loadProjectPhases(firstProject.id),
-        loadProjectConfig(firstProject.id)
-      ]);
+      // Usa os dados que já foram carregados no loadProjects
+      setPhases(firstProject.phases || []);
       
-      setPhases(savedPhases || []);
+      // Só carrega a configuração separadamente se necessário
+      const savedConfig = await loadProjectConfig(firstProject.id);
       setBuildingConfig(savedConfig);
-      setShowEmptyPhaseState(!savedPhases || savedPhases.length === 0);
+      setShowEmptyPhaseState(!firstProject.phases || firstProject.phases.length === 0);
     }
   }, [currentUser, activeProjectId]);
 
@@ -250,6 +273,11 @@ export default function GlobalApplication() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'floors' },
+        () => { loadInitialData(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'services' },
         () => { loadInitialData(); }
       )
       .subscribe();
