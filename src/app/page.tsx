@@ -406,41 +406,14 @@ export default function GlobalApplication() {
   const handleLogin = async (user: User, isNewUser = false) => {
     setCurrentUser(user);
     if (isNewUser) {
-      const now = new Date();
-      const expires = new Date();
-      expires.setDate(now.getDate() + 30);
-      const newCompany: Company = {
-        id: user.companyId,
-        name: `Engenharia ${user.name}`,
-        plan: 'Básico',
-        monthlyValue: 199,
-        planStartDate: now.toISOString(),
-        planEndDate: expires.toISOString(),
-        billingStatus: 'ACTIVE',
-        isPaused: false,
-        activeUsers: 1,
-        createdAt: now.toISOString()
-      };
-
-      const updatedCompanies = [...companies, newCompany];
-      setCompanies(updatedCompanies);
-      saveCompany(newCompany as any);
-
-      const emptyProject: Project = {
-        id: `p_${Date.now()}`,
-        companyId: user.companyId,
-        name: 'Minha Primeira Obra',
-        location: '',
-        totalFloors: 0,
-        basements: 0,
-        hasLeisure: false,
-        hasAtrium: false,
-        technicalAreas: 0,
-        floors: []
-      };
-      const updatedProjects = [...allProjects, emptyProject];
-      setAllProjects(updatedProjects);
-      saveProject(emptyProject);
+      // A empresa é criada pelo trigger handle_new_user no Supabase (migration 002).
+      // Aqui só recarregamos para pegar o estado real do banco.
+      const [freshCompanies, freshProjects] = await Promise.all([
+        loadCompanies(),
+        loadProjects(user.companyId),
+      ]);
+      setCompanies(freshCompanies);
+      setAllProjects(freshProjects as Project[]);
       setCurrentViewCompanyId(user.companyId);
     } else {
       setCurrentViewCompanyId(user.companyId);
@@ -1243,32 +1216,12 @@ onToggleUser={async (userId: string, isActive: boolean) => {
                    }
                 }}
 onRefresh={async () => {
-                    const supabaseProfiles = await loadUserProfilesFromSupabase();
-                    const refreshNow = new Date();
-                    const refreshEnd = new Date(refreshNow.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                    const refreshedCompanies = supabaseProfiles
-                      .filter((p: any) => p.role !== 'SUPERADMIN')
-                      .map((p: any) => ({
-                        id: p.companyId || `comp_${p.id}`,
-                        name: p.name || p.email,
-                        plan: 'Básico' as 'Básico' | 'Pro' | 'Empresa',
-                        monthlyValue: 199,
-                        planStartDate: refreshNow.toISOString(),
-                        planEndDate: refreshEnd,
-                        billingStatus: 'ACTIVE' as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
-                        isPaused: false,
-                        activeUsers: 1,
-                        createdAt: refreshNow.toISOString()
-                      }));
-                    const refreshedUsers = supabaseProfiles.map((p: any) => ({
-                      id: p.id, email: p.email,
-                      name: p.name || p.email,
-                      role: p.role || 'ADMIN',
-                      companyId: p.companyId || `comp_${p.id}`,
-                      isActive: true
-                    }));
-                    setCompanies(refreshedCompanies);
-                    setAllUsers(refreshedUsers);
+                    const [freshCompanies, freshUsers] = await Promise.all([
+                      loadCompanies(),
+                      getAllUsers(),
+                    ]);
+                    setCompanies(freshCompanies);
+                    setAllUsers(freshUsers);
                     setToast({ message: "Dados atualizados do Supabase!", type: 'success' });
                  }}
                 onReset={() => {

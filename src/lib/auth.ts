@@ -147,6 +147,41 @@ export async function getCurrentUser(): Promise<StoredUser | null> {
 // =====================
 
 export async function getAllUsers(): Promise<StoredUser[]> {
+  // Tenta primeiro o endpoint admin (com emails reais via service-role).
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (token) {
+      const res = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.users)) {
+          // Cruza com profiles para obter is_active e role atualizados.
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, name, role, company_id, is_active');
+          const byId = new Map((profiles || []).map((p: any) => [p.id, p]));
+          return json.users.map((u: any) => {
+            const p: any = byId.get(u.id) || {};
+            return {
+              id: u.id,
+              email: u.email || '',
+              name: p.name || u.name || u.email || '',
+              role: (p.role || u.role || 'ADMIN') as StoredUser['role'],
+              companyId: p.company_id || u.companyId || '',
+              isActive: p.is_active !== false,
+            };
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('getAllUsers: fallback para profiles, erro:', err);
+  }
+
+  // Fallback: só profiles (sem email real).
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, role, company_id, is_active');
@@ -160,7 +195,7 @@ export async function getAllUsers(): Promise<StoredUser[]> {
     name: p.name || '',
     role: (p.role || 'ADMIN') as StoredUser['role'],
     companyId: p.company_id || '',
-    isActive: p.is_active === true,
+    isActive: p.is_active !== false,
   }));
 }
 
@@ -199,13 +234,27 @@ export async function saveUser(user: Omit<StoredUser, 'id'> & { password: string
 
 export async function updateUserActive(userId: string, isActive: boolean): Promise<boolean> {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      console.error('updateUserActive: sem sessão ativa');
+      return false;
+    }
+
     const res = await fetch('/api/admin/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ userId, isActive })
     });
-    const data = await res.json();
-    return res.ok && data.success;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('updateUserActive falhou:', res.status, data);
+      return false;
+    }
+    return data.success === true;
   } catch (error) {
     console.error('Error updating user active:', error);
     return false;
@@ -232,16 +281,50 @@ export async function loadUserProfilesFromSupabase(): Promise<StoredUser[]> {
 
 export async function loadCompanies(): Promise<Company[]> {
   const { data, error } = await supabase.from('companies').select('*');
-  if (error) return [];
-  return data ?? [];
+  if (error) {
+    console.error('loadCompanies error:', error);
+    return [];
+  }
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    address: c.address,
+    plan: c.plan,
+    monthlyValue: typeof c.monthly_value === 'string' ? parseFloat(c.monthly_value) : c.monthly_value,
+    planStartDate: c.plan_start_date,
+    planEndDate: c.plan_end_date,
+    billingStatus: c.billing_status,
+    isPaused: c.is_paused,
+    activeUsers: c.active_users,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
+  }));
 }
 
 export async function saveCompany(company: Company): Promise<void> {
-  const { id, ...rest } = company;
-  if (id) {
-    await supabase.from('companies').upsert({ id, ...rest });
+  const record: any = {
+    name: company.name,
+    email: company.email,
+    phone: company.phone,
+    address: company.address,
+    plan: company.plan,
+    monthly_value: company.monthlyValue,
+    plan_start_date: company.planStartDate,
+    plan_end_date: company.planEndDate,
+    billing_status: company.billingStatus,
+    is_paused: company.isPaused,
+    active_users: company.activeUsers,
+  };
+  Object.keys(record).forEach(k => record[k] === undefined && delete record[k]);
+
+  if (company.id) {
+    const { error } = await supabase.from('companies').upsert({ id: company.id, ...record });
+    if (error) console.error('saveCompany upsert error:', error);
   } else {
-    await supabase.from('companies').insert(rest);
+    const { error } = await supabase.from('companies').insert(record);
+    if (error) console.error('saveCompany insert error:', error);
   }
 }
 
