@@ -58,7 +58,7 @@ export async function loadProjectData(projectId: string): Promise<Project | null
     .from('projects')
     .select('*, floors(*)')
     .eq('id', projectId)
-    .single();
+    .maybeSingle();
 
   if (pError || !p) {
     console.error('Error loading project base data:', pError);
@@ -201,7 +201,7 @@ export async function loadProjectConfig(projectId: string): Promise<BuildingConf
     .from('building_configs')
     .select('*')
     .eq('project_id', projectId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
 

@@ -35,7 +35,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       .from('team_members')
       .select('id, name, email, permissions')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
 
     if (!member) {
       setError('Usuário sem acesso à equipe');

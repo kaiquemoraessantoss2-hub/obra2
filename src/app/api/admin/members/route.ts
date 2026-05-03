@@ -16,28 +16,30 @@ function createAdminClient() {
 
 async function verifyAdmin(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) throw new Error('Configuração inválida');
+  if (!supabaseUrl || !serviceRoleKey) throw new Error('Configuração inválida');
 
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.split(' ')[1];
   if (!token) throw new Error('Não autorizado');
 
-  const client = createClient(supabaseUrl, supabaseAnonKey, {
+  // Usamos um client com service role para verificar o admin de forma robusta,
+  // ignorando eventuais problemas de RLS (como recursão) na tabela de profiles.
+  const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: { user }, error } = await client.auth.getUser(token);
-  if (error || !user) throw new Error('Não autorizado');
+  const { data: { user }, error: authError } = await client.auth.getUser(token);
+  if (authError || !user) throw new Error('Não autorizado');
 
-  const { data: profile } = await client
+  const { data: profile, error: profileError } = await client
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile || !['ADMIN', 'SUPERADMIN'].includes(profile.role)) {
+  if (profileError || !profile || !['ADMIN', 'SUPERADMIN'].includes(profile.role)) {
     throw new Error('Sem permissão');
   }
 }

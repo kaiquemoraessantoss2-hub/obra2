@@ -97,7 +97,7 @@ export async function signIn(email: string, password: string): Promise<StoredUse
     .from('profiles')
     .select('id, name, role, company_id, is_active')
     .eq('id', data.user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) return null;
 
@@ -123,7 +123,7 @@ export async function getCurrentUser(): Promise<StoredUser | null> {
     .from('profiles')
     .select('id, name, role, company_id, is_active')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) return null;
 
