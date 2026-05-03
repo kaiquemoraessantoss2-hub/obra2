@@ -1049,7 +1049,7 @@ if (currentMember) {
           <AlertTriangle className="text-rose-500 mx-auto mb-6" size={56} />
           <h1 className="text-2xl font-black text-white mb-2">Acesso Suspenso</h1>
           <p className="text-slate-400 mb-8">Contate o suporte.</p>
-          <button onClick={() => setCurrentUser(null)} className="btn-primary w-full">Sair</button>
+          <button onClick={() => { setCurrentUser(null); signOut(); }} className="btn-primary w-full">Sair</button>
         </div>
       </div>
     );
@@ -1139,7 +1139,7 @@ if (currentMember) {
             </>
           )}
         </nav>
-        <button onClick={() => setCurrentUser(null)} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16}/> Sair</button>
+        <button onClick={() => { setCurrentUser(null); signOut(); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16}/> Sair</button>
       </aside>
 
 
