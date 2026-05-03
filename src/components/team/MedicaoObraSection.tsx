@@ -105,7 +105,7 @@ export default function MedicaoObraSection({
       valor_unitario: valorUnitario,
       valor_total: quantidade * valorUnitario,
       created_by: currentUserName,
-    }).select().single();
+    }).select().maybeSingle();
     if (error || !data) return;
     setMedicoes(prev => [...prev, {
       id: data.id, projectId: data.project_id, disciplina: data.disciplina,

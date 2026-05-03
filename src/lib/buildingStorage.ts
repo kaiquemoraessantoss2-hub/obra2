@@ -25,7 +25,7 @@ export async function loadBuildingConfig(projectId: string): Promise<BuildingCon
     .from('building_configs')
     .select('*')
     .eq('project_id', projectId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
 

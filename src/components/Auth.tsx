@@ -49,19 +49,16 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
 
           if (profErr || !profile) {
             console.error('Perfil não encontrado para ID:', data.user.id, profErr);
-            await supabase.auth.signOut();
             setError(`Perfil não encontrado (${data.user.id.substring(0, 8)}...). Contate o administrador.`);
             return;
           }
 
           if (profile.is_active === false) {
-            await supabase.auth.signOut();
             setError('Usuário bloqueado. Contate o administrador.');
             return;
           }
 
           if (!profile.company_id) {
-            await supabase.auth.signOut();
             setError('Empresa não vinculada ao perfil. Contate o administrador.');
             return;
           }

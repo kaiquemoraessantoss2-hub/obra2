@@ -64,7 +64,7 @@ export default function PendenciasSection({
       responsavel: responsavel.trim() || currentUserName,
       nome_membro: currentUserName,
       concluida: false,
-    }).select().single();
+    }).select().maybeSingle();
     if (error || !data) return;
     setPendencias(prev => [...prev, {
       id: data.id, projectId: data.project_id, conteudo: data.conteudo,

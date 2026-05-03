@@ -107,16 +107,21 @@ export default function GlobalApplication() {
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
         if (profile) {
+          if (profile.is_active === false) {
+            await supabase.auth.signOut();
+            return;
+          }
+          
           setCurrentUser({
             id: profile.id,
             email: session.user.email || '',
             name: profile.name || session.user.email || '',
             role: (profile.role as any) || 'ADMIN',
             companyId: profile.company_id || '',
-            isActive: profile.is_active ?? true
+            isActive: true
           });
         }
       }
