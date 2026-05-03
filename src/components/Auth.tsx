@@ -45,11 +45,12 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
             .from('profiles')
             .select('company_id, role, is_active, name')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
 
           if (profErr || !profile) {
+            console.error('Perfil não encontrado para ID:', data.user.id, profErr);
             await supabase.auth.signOut();
-            setError('Perfil não encontrado. Contate o administrador.');
+            setError(`Perfil não encontrado (${data.user.id.substring(0, 8)}...). Contate o administrador.`);
             return;
           }
 
@@ -104,7 +105,7 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
             .from('profiles')
             .select('company_id, role, is_active, name')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
 
           if (!profile?.company_id) {
             setError('Erro ao criar perfil. Tente novamente.');
