@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   Building2, 
   CheckCircle, 
@@ -172,7 +172,9 @@ export default function GlobalApplication() {
     } : ap);
     setAllProjects(updatedProjects);
     saveProjects(updatedProjects);
-  };  const loadInitialData = useCallback(async () => {
+  };
+
+  const loadInitialData = useCallback(async () => {
     initializeDefaultData();
     const storedCompanies = await loadCompanies();
     const storedProjects = await loadProjects();
@@ -304,7 +306,6 @@ export default function GlobalApplication() {
       supabase.removeChannel(channel);
     };
   }, [currentUser?.companyId, loadInitialData]);
-, []);
 
   const selectProject = async (projectId: string) => {
     if (activeProjectId && activeProjectId !== projectId) {
