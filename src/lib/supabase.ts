@@ -17,11 +17,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Wipe stale tokens so they don't cause repeated "Invalid Refresh Token" errors on load
 if (typeof window !== 'undefined') {
+  const clearStaleAuth = () => {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    keys.forEach(k => localStorage.removeItem(k));
+  };
+
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') {
-      // Remove any leftover Supabase session keys from localStorage
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-      keys.forEach(k => localStorage.removeItem(k));
+      clearStaleAuth();
     }
+  });
+
+  // Sessão local pode estar com refresh_token inválido (usuário deletado, projeto
+  // resetado, token expirado há muito tempo). Detecta e limpa automaticamente para
+  // permitir um login novo sem precisar limpar manualmente o localStorage.
+  supabase.auth.getSession().then(({ data, error }) => {
+    if (error || !data.session) {
+      clearStaleAuth();
+    }
+  }).catch(() => {
+    clearStaleAuth();
   });
 }

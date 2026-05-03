@@ -40,30 +40,43 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
         }
 
         if (data.user) {
-          const { data: profile } = await supabase
+          // Lê o profile real (company_id em UUID, role, is_active).
+          const { data: profile, error: profErr } = await supabase
             .from('profiles')
-            .select('is_active')
+            .select('company_id, role, is_active, name')
             .eq('id', data.user.id)
             .single();
-          
-          if (profile && profile.is_active === false) {
+
+          if (profErr || !profile) {
+            await supabase.auth.signOut();
+            setError('Perfil não encontrado. Contate o administrador.');
+            return;
+          }
+
+          if (profile.is_active === false) {
             await supabase.auth.signOut();
             setError('Usuário bloqueado. Contate o administrador.');
             return;
           }
-          
-          const isAdminEmail = data.user.email === 'admin@obraflow.com';
+
+          if (!profile.company_id) {
+            await supabase.auth.signOut();
+            setError('Empresa não vinculada ao perfil. Contate o administrador.');
+            return;
+          }
+
           onLogin({
             id: data.user.id,
-            companyId: isAdminEmail ? 'obraflow_master' : (data.user.user_metadata.company_id || data.user.user_metadata.companyId || `comp_${data.user.id}`),
-            name: data.user.user_metadata.name || data.user.user_metadata.full_name || data.user.email || '',
+            companyId: profile.company_id,
+            name: profile.name || data.user.email || '',
             email: data.user.email || '',
-            role: isAdminEmail ? 'SUPERADMIN' : (data.user.user_metadata.role || 'ADMIN'),
-            isActive: profile?.is_active ?? true
+            role: (profile.role || 'ADMIN') as User['role'],
+            isActive: profile.is_active !== false
           }, false);
         }
       } else {
-        // ✅ Registro Real com Supabase
+        // ✅ Registro Real com Supabase — o trigger handle_new_user cria a company.
+        // NÃO mandamos company_id no metadata (deixa o trigger criar uma nova).
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
@@ -71,7 +84,6 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
             data: {
               name: name,
               role: email === 'admin@obraflow.com' ? 'SUPERADMIN' : 'ADMIN',
-              company_id: email === 'admin@obraflow.com' ? 'obraflow_master' : `comp_${Date.now()}`,
             }
           }
         });
@@ -82,22 +94,31 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
         }
 
         if (data.user) {
-          const isAdminEmail = data.user.email === 'admin@obraflow.com';
-          const companyId = isAdminEmail ? 'obraflow_master' : data.user.user_metadata.company_id || `comp_${Date.now()}`;
-          
-          // O trigger 'on_auth_user_created' no Supabase cuidará de criar o perfil na tabela 'profiles'
-          
           if (data.session === null) {
             setError('Conta criada! Verifique seu e-mail para confirmar o cadastro.');
-          } else {
-            onLogin({
-              id: data.user.id,
-              companyId: companyId,
-              name: name,
-              email: email,
-              role: isAdminEmail ? 'SUPERADMIN' : 'ADMIN'
-            }, true);
+            return;
           }
+
+          // Lê company_id real criado pelo trigger.
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('company_id, role, is_active, name')
+            .eq('id', data.user.id)
+            .single();
+
+          if (!profile?.company_id) {
+            setError('Erro ao criar perfil. Tente novamente.');
+            return;
+          }
+
+          onLogin({
+            id: data.user.id,
+            companyId: profile.company_id,
+            name: profile.name || name,
+            email: email,
+            role: (profile.role || 'ADMIN') as User['role'],
+            isActive: profile.is_active !== false
+          }, true);
         }
       }
     } catch (err) {
