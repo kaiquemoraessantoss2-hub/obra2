@@ -558,7 +558,7 @@ const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (parts.length < 3) return;
         const floorNum = parseInt(parts[0].trim());
         const serviceName = parts[1].trim();
-        const status = parts[2].trim().toUpperCase().replace(' ', '_');
+        const status = (parts[2] || '').trim().toUpperCase().replace(' ', '_');
         
         const floorIndex = updatedFloors.findIndex((f: any) => f.number === floorNum);
         if (floorIndex >= 0) {
@@ -1533,12 +1533,12 @@ onRefresh={async () => {
                            (project?.floors || []).sort((a,b) => a.number - b.number).forEach(f => {
                              f.services.forEach(s => {
                                const pct = s.status === 'COMPLETED' ? 100 : s.status === 'IN_PROGRESS' ? 50 : 0;
-                               csv += `${f.label},${f.type},${s.name},${s.status.replace('_',' ')},${pct}%\n`;
+                               csv += `${f.label},${f.type},${s.name},${(s.status || '').replace('_',' ')},${pct}%\n`;
                              });
                            });
                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                            const url = window.URL.createObjectURL(blob);
-                           const a = document.createElement('a'); a.href = url; a.download = `andamento_tecnico_${project?.name.replace(/\s/g,'_')}.csv`; a.click();
+                           const a = document.createElement('a'); a.href = url; a.download = `andamento_tecnico_${(project?.name || 'obra').replace(/\s/g,'_')}.csv`; a.click();
                            setToast({ message: "Relatório gerado!", type: 'success' });
                         }}/>
                         <ReportCard title="Cronograma de Fases" desc="Progresso detalhado de todas as fases" onClick={() => {
@@ -1549,14 +1549,14 @@ onRefresh={async () => {
                            let csv = "Fase,Peso(%),Progresso,Status,Inicio,Previsão Fim,Responsável,Sub-etapas Concluídas\n";
                            phases.forEach(p => {
                              const subStepsConcluidas = p.subSteps.filter((s: any) => s.status === 'COMPLETED').length;
-                             csv += `${p.name},${p.weight},${p.progress}%,${p.status.replace('_',' ')},${p.startDate || '-'},${p.endDate || '-'},${p.responsible || '-'},${subStepsConcluidas}/${p.subSteps.length}\n`;
+                             csv += `${p.name},${p.weight},${p.progress}%,${(p.status || '').replace('_',' ')},${p.startDate || '-'},${p.endDate || '-'},${p.responsible || '-'},${subStepsConcluidas}/${p.subSteps.length}\n`;
                              p.subSteps.forEach(s => {
-                               csv += `  - ${s.name},${s.progress}%,${s.status.replace('_',' ')},${s.responsible || '-'}\n`;
+                               csv += `  - ${s.name},${s.progress}%,${(s.status || '').replace('_',' ')},${s.responsible || '-'}\n`;
                              });
                            });
                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                            const url = window.URL.createObjectURL(blob);
-                           const a = document.createElement('a'); a.href = url; a.download = `cronograma_${project?.name.replace(/\s/g,'_')}.csv`; a.click();
+                           const a = document.createElement('a'); a.href = url; a.download = `cronograma_${(project?.name || 'obra').replace(/\s/g,'_')}.csv`; a.click();
                            setToast({ message: "Relatório gerado!", type: 'success' });
                         }}/>
                         <ReportCard title="Resumo Geral da Obra" desc="Planilha completa com todos os dados" onClick={() => {
@@ -1598,7 +1598,7 @@ onRefresh={async () => {
                            });
                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                            const url = window.URL.createObjectURL(blob);
-                           const a = document.createElement('a'); a.href = url; a.download = `relatorio_completo_${project?.name.replace(/\s/g,'_')}.csv`; a.click();
+                           const a = document.createElement('a'); a.href = url; a.download = `relatorio_completo_${(project?.name || 'obra').replace(/\s/g,'_')}.csv`; a.click();
                            setToast({ message: "Relatório gerado!", type: 'success' });
                         }}/>
                      </div>

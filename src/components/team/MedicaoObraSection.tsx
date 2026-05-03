@@ -93,8 +93,8 @@ export default function MedicaoObraSection({
 
   const adicionarMedicao = async () => {
     if (!form.disciplina || !form.descricao || !form.quantidade || !form.valorUnitario) return;
-    const quantidade = parseFloat(form.quantidade.replace(',', '.'));
-    const valorUnitario = parseFloat(form.valorUnitario.replace(',', '.'));
+    const quantidade = parseFloat((form.quantidade || '').replace(',', '.'));
+    const valorUnitario = parseFloat((form.valorUnitario || '').replace(',', '.'));
     const { data, error } = await supabase.from('medicoes').insert({
       project_id: projectId,
       disciplina: form.disciplina,
@@ -141,8 +141,8 @@ export default function MedicaoObraSection({
 
         const cols = line.split(',');
         if (cols.length >= 7) {
-          const quantidade = parseFloat(cols[4].replace(',', '.')) || 0;
-          const valorUnitario = parseFloat(cols[6].replace(',', '.')) || 0;
+          const quantidade = parseFloat((cols[4] || '').replace(',', '.')) || 0;
+          const valorUnitario = parseFloat((cols[6] || '').replace(',', '.')) || 0;
 
           newMedicoes.push({
             id: '',

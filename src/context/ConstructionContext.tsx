@@ -113,7 +113,7 @@ export function ConstructionProvider({ children }: { children: ReactNode }) {
   }, [recalculatePhaseProgress, recalculateAllPhases]);
 
   const addSubStep = useCallback((phaseId: string, newSubStep: Omit<SubStep, 'id'>) => {
-    const subStep: SubStep = { ...newSubStep, id: `s${phaseId.replace('p', '')}_${Date.now()}` };
+    const subStep: SubStep = { ...newSubStep, id: `s${(phaseId || '').replace('p', '')}_${Date.now()}` };
     setPhases(prev => {
       const updated = prev.map(phase => {
         if (phase.id !== phaseId) return phase;

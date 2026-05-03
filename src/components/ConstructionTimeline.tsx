@@ -464,7 +464,7 @@ function PhaseCardEdit({ phase, onDelete, onUpdate }: PhaseCardEditProps) {
               </select>
             ) : (
 <span className={cn("inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border", getStatusColor(phase.status))}>
-              {phase.status === 'COMPLETED' ? 'Concluído' : phase.status === 'IN_PROGRESS' ? 'Em Andamento' : phase.status === 'NOT_STARTED' ? 'Não Iniciado' : phase.status.replace('_', ' ')}
+              {phase.status === 'COMPLETED' ? 'Concluído' : phase.status === 'IN_PROGRESS' ? 'Em Andamento' : phase.status === 'NOT_STARTED' ? 'Não Iniciado' : (phase.status || '').replace('_', ' ')}
             </span>
             )}
           </div>
@@ -514,7 +514,7 @@ function PhaseCardEdit({ phase, onDelete, onUpdate }: PhaseCardEditProps) {
             <div className="mt-2">
               <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                 <div 
-                  className={cn("h-full transition-all", phase.color.replace('bg-', 'bg-opacity-100 bg-'))}
+                  className={cn("h-full transition-all", (phase.color || '').replace('bg-', 'bg-opacity-100 bg-'))}
                   style={{ width: `${phase.progress}%` }}
                 />
               </div>

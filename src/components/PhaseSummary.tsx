@@ -154,7 +154,7 @@ return (
                 </div>
                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div 
-                    className={cn("h-full transition-all", phase.color.replace('bg-', 'bg-opacity-100 bg-'))}
+                    className={cn("h-full transition-all", (phase.color || '').replace('bg-', 'bg-opacity-100 bg-'))}
                     style={{ width: `${phase.progress}%` }}
                   />
                 </div>

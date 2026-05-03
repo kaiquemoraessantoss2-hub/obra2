@@ -151,7 +151,10 @@ export async function getAllUsers(): Promise<StoredUser[]> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    if (token) {
+    const role = session?.user?.user_metadata?.role;
+    
+    // Só tenta o fetch se tiver token e se for ADMIN/SUPERADMIN para evitar 403 no console
+    if (token && (role === 'ADMIN' || role === 'SUPERADMIN')) {
       const res = await fetch('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` },
       });

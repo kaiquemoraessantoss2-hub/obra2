@@ -44,7 +44,7 @@ export default function FloorProgressMatrix({ phases, projectName }: FloorProgre
               const isTechnical = fe.floorLabel.toLowerCase().includes('técnica');
               
               let order = 0;
-              if (isBasement) order = -100 - parseInt(fe.floorLabel.replace(/\D/g, '') || '0');
+              if (isBasement) order = -100 - parseInt((fe.floorLabel || '').replace(/\D/g, '') || '0');
               else if (isGround) order = 0;
               else if (isLeisure) order = 100;
               else if (isTechnical) order = 200;
@@ -135,7 +135,7 @@ export default function FloorProgressMatrix({ phases, projectName }: FloorProgre
               {filteredSubSteps.map(subStep => (
                 <th key={subStep.id} className="py-3 px-2 text-center min-w-[80px]">
                   <div className="flex flex-col items-center gap-1">
-                    <div className={cn("w-2 h-2 rounded-full", subStep.phaseColor.replace('bg-', 'bg-'))} />
+                    <div className={cn("w-2 h-2 rounded-full", (subStep.phaseColor || '').replace('bg-', 'bg-'))} />
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider line-clamp-1" title={subStep.name}>
                       {subStep.name.length > 12 ? subStep.name.substring(0, 12) + '...' : subStep.name}
                     </span>

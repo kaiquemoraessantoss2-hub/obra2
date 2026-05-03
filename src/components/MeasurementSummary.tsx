@@ -130,7 +130,7 @@ export default function MeasurementSummary({ phases, projectName }: MeasurementS
         
         {measurements.map(m => (
           <div key={m.subStepId} className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl hover:bg-white/[0.02] transition-all">
-            <div className={cn("w-1 h-12 rounded-full", m.phaseColor.replace('bg-', 'bg-'))} />
+            <div className={cn("w-1 h-12 rounded-full", (m.phaseColor || '').replace('bg-', 'bg-'))} />
             
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">

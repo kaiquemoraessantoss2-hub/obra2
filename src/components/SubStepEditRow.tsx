@@ -279,7 +279,7 @@ export default function SubStepEditRow({
           </div>
 
           <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border", getStatusColor(subStep.status))}>
-            {subStep.status.replace('_', ' ')}
+            {(subStep.status || '').replace('_', ' ')}
           </span>
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -314,7 +314,7 @@ export default function PhaseEditModal({ phase, isOpen, onClose }: PhaseEditModa
               
               <div className="h-3 bg-white/5 rounded-full overflow-hidden">
                 <div 
-                  className={cn("h-full transition-all duration-500", phase.color.replace('bg-', 'bg-opacity-100 bg-'))}
+                  className={cn("h-full transition-all duration-500", (phase.color || '').replace('bg-', 'bg-opacity-100 bg-'))}
                   style={{ width: `${formData.progress || 0}%` }}
                 />
               </div>

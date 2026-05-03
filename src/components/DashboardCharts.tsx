@@ -30,7 +30,9 @@ export default function DashboardCharts({ disciplineData, floorData, companyId }
   const [gargalosCount, setGargalosCount] = useState(0);
   const ranges = ['1D', '1W', '1M', '6M', '1Y'];
 
+  const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
+    setIsMounted(true);
     if (companyId) {
       loadGargalosByCompany(companyId).then(g => setGargalosCount(g.length));
     }
@@ -61,8 +63,9 @@ export default function DashboardCharts({ disciplineData, floorData, companyId }
         </div>
 
         <div className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={disciplineData}>
+          {isMounted ? (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <AreaChart data={disciplineData}>
               <defs>
                 <linearGradient id="colorProg" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
@@ -102,7 +105,10 @@ export default function DashboardCharts({ disciplineData, floorData, companyId }
                 fill="url(#colorProg)" 
               />
             </AreaChart>
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full bg-white/5 animate-pulse rounded-2xl" />
+          )}
         </div>
       </div>
 
