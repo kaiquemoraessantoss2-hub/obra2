@@ -71,7 +71,7 @@ import { ModuleGuard, TeamPage, LoginPage, PendenciasSection, MedicaoObraSection
 import { Floor, Status, User, BuildingConfig, ConstructionPhase, FloorExecution, SubStep } from '@/types';
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
 import { getProgressPercentage, cn } from '@/lib/utils';
-import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, Company, Project } from '@/lib/auth';
+import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, signOut, Company, Project } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export default function GlobalApplication() {
@@ -172,108 +172,139 @@ export default function GlobalApplication() {
     } : ap);
     setAllProjects(updatedProjects);
     saveProjects(updatedProjects);
-  };
+  };  const loadInitialData = useCallback(async () => {
+    initializeDefaultData();
+    const storedCompanies = await loadCompanies();
+    const storedProjects = await loadProjects();
+    const users = await getAllUsers();
+    
+    const supabaseProfiles = await loadUserProfilesFromSupabase();
+    
+    const now = new Date();
+    const defaultEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const typedCompanies: Company[] = storedCompanies.map(c => ({
+      ...c,
+      id: c.id || `local_${Date.now()}`,
+      plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
+      billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
+      monthlyValue: c.monthlyValue ?? 0,
+      planStartDate: c.planStartDate || new Date().toISOString(),
+      planEndDate: c.planEndDate || new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+      isPaused: c.isPaused ?? false,
+      activeUsers: c.activeUsers ?? 1,
+      createdAt: c.createdAt || new Date().toISOString()
+    }));
+    
+    const supabaseTypedCompanies: Company[] = supabaseProfiles
+      .filter((p: any) => p.role !== 'SUPERADMIN')
+      .map((p: any) => {
+        const existingCompany = typedCompanies.find(c => c.id === (p.company_id || p.companyId));
+        const planStartDate = existingCompany?.planStartDate || now.toISOString();
+        const planEndDate = existingCompany?.planEndDate || defaultEnd;
+        return {
+          id: p.company_id || p.companyId || `comp_${p.id}`,
+          name: p.name || p.email,
+          plan: (existingCompany?.plan as 'Básico' | 'Pro' | 'Empresa') || 'Básico',
+          monthlyValue: existingCompany?.monthlyValue || 199,
+          planStartDate,
+          planEndDate,
+          billingStatus: (existingCompany?.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED') || 'ACTIVE',
+          isPaused: existingCompany?.isPaused ?? false,
+          activeUsers: existingCompany?.activeUsers ?? 1,
+          createdAt: existingCompany?.createdAt || now.toISOString()
+        };
+      });
+
+    const mergedCompanies = [...typedCompanies];
+    supabaseTypedCompanies.forEach(supabaseCompany => {
+      if (!mergedCompanies.find(c => c.id === supabaseCompany.id)) {
+        mergedCompanies.push(supabaseCompany);
+      }
+    });
+
+    const supabaseUsers = supabaseProfiles.map((p: any) => ({
+      id: p.id,
+      email: p.email,
+      name: p.name || p.email,
+      role: p.role || 'ADMIN',
+      companyId: p.company_id || p.companyId || `comp_${p.id}`,
+      isActive: p.isActive !== false
+    }));
+    const mergedUsers = [...users];
+    supabaseUsers.forEach((su: any) => {
+      if (!mergedUsers.find((u: any) => u.id === su.id)) mergedUsers.push(su);
+    });
+
+    setCompanies(mergedCompanies);
+    const typedProjects: Project[] = storedProjects.map((p: any) => ({
+      ...p,
+      id: p.id || `proj_${Date.now()}`,
+      companyId: p.companyId || '',
+      name: p.name || 'Novo Projeto',
+      location: p.location || '',
+      totalFloors: p.totalFloors ?? 1,
+      basements: p.basements ?? 0,
+      hasLeisure: p.hasLeisure ?? false,
+      hasAtrium: p.hasAtrium ?? false,
+      technicalAreas: p.technicalAreas ?? 0,
+      floors: p.floors || [],
+      phases: p.phases || []
+    }));
+    
+    setAllProjects(typedProjects);
+    setAllUsers(mergedUsers);
+    setIsInitialized(true);
+    
+    if (typedProjects.length > 0 && mergedCompanies.length > 0) {
+      setCurrentViewCompanyId(mergedCompanies[0].id || '');
+      const firstProject = typedProjects[0];
+      setActiveProjectId(firstProject.id || '');
+      setCurrentProjectIndex(0);
+      const savedPhases = await loadProjectPhases(firstProject.id || '');
+      setPhases(savedPhases || []);
+      const savedConfig = await loadProjectConfig(firstProject.id || '');
+      setBuildingConfig(savedConfig);
+      if (savedPhases && savedPhases.length > 0) {
+        setShowEmptyPhaseState(false);
+      } else {
+        setShowEmptyPhaseState(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    // currentMember is held in React state only — no sessionStorage persistence needed
-
-    const loadInitialData = async () => {
-      initializeDefaultData();
-      const storedCompanies = await loadCompanies();
-      const storedProjects = await loadProjects();
-      const users = await getAllUsers();
-      
-      const supabaseProfiles = await loadUserProfilesFromSupabase();
-      
-      const typedCompanies: Company[] = storedCompanies.map(c => ({
-        ...c,
-        id: c.id || `local_${Date.now()}`,
-        plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
-        billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
-        monthlyValue: c.monthlyValue ?? 0,
-        planStartDate: c.planStartDate || new Date().toISOString(),
-        planEndDate: c.planEndDate || new Date(Date.now() + 30*24*60*60*1000).toISOString(),
-        isPaused: c.isPaused ?? false,
-        activeUsers: c.activeUsers ?? 1,
-        createdAt: c.createdAt || new Date().toISOString()
-      }));
-      
-      const now = new Date();
-      const defaultEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      const supabaseTypedCompanies: Company[] = supabaseProfiles
-        .filter((p: any) => p.role !== 'SUPERADMIN')
-        .map((p: any) => ({
-          id: p.companyId || `comp_${p.id}`,
-          name: p.name || p.email,
-          plan: 'Básico' as 'Básico' | 'Pro' | 'Empresa',
-          monthlyValue: 199,
-          planStartDate: now.toISOString(),
-          planEndDate: defaultEnd,
-          billingStatus: 'ACTIVE' as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
-          isPaused: false,
-          activeUsers: 1,
-          createdAt: now.toISOString()
-        }));
-
-      const mergedCompanies = [...typedCompanies];
-      supabaseTypedCompanies.forEach(supabaseCompany => {
-        if (!mergedCompanies.find(c => c.id === supabaseCompany.id)) {
-          mergedCompanies.push(supabaseCompany);
-        }
-      });
-
-      const supabaseUsers = supabaseProfiles.map((p: any) => ({
-        id: p.id,
-        email: p.email,
-        name: p.name || p.email,
-        role: p.role || 'ADMIN',
-        companyId: p.companyId || `comp_${p.id}`,
-        isActive: true
-      }));
-      const mergedUsers = [...users];
-      supabaseUsers.forEach((su: any) => {
-        if (!mergedUsers.find((u: any) => u.id === su.id)) mergedUsers.push(su);
-      });
-
-      setCompanies(mergedCompanies);
-      const typedProjects: Project[] = storedProjects.map((p: any) => ({
-        id: p.id || `proj_${Date.now()}`,
-        companyId: p.company_id || p.companyId || '',
-        name: p.name || 'Novo Projeto',
-        location: p.location || '',
-        totalFloors: p.totalFloors ?? p.total_floors ?? 1,
-        basements: p.basements ?? 0,
-        hasLeisure: p.hasLeisure ?? false,
-        hasAtrium: p.hasAtrium ?? false,
-        technicalAreas: p.technicalAreas ?? 0,
-        floors: [],
-        phases: []
-      }));
-      setAllProjects(typedProjects);
-      setAllUsers(mergedUsers);
-      setIsInitialized(true);
-      
-      if (typedProjects.length > 0 && mergedCompanies.length > 0) {
-        setCurrentViewCompanyId(mergedCompanies[0].id || '');
-        const firstProject = typedProjects[0];
-        setActiveProjectId(firstProject.id || '');
-        setCurrentProjectIndex(0);
-        const savedPhases = await loadProjectPhases(firstProject.id || '');
-        setPhases(savedPhases || []);
-        const savedConfig = await loadProjectConfig(firstProject.id || '');
-        setBuildingConfig(savedConfig);
-        if (savedPhases && savedPhases.length > 0) {
-          setShowEmptyPhaseState(false);
-        } else {
-          setShowEmptyPhaseState(true);
-        }
-      }
-      
-      // construction_phases previously removed from localStorage - now stored in Supabase
-    };
-    
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
+
+  // Realtime Subscriptions
+  useEffect(() => {
+    if (!currentUser?.companyId) return;
+
+    const channel = supabase
+      .channel('db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projects' },
+        () => { loadInitialData(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'project_phases' },
+        () => { loadInitialData(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'floors' },
+        () => { loadInitialData(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.companyId, loadInitialData]);
+, []);
 
   const selectProject = async (projectId: string) => {
     if (activeProjectId && activeProjectId !== projectId) {
@@ -1003,6 +1034,19 @@ if (currentMember) {
   }
 
   if (!currentUser) return <Auth onLogin={handleLogin} />;
+  
+  if (currentUser.isActive === false) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center p-6 text-center">
+        <div className="glass-card max-w-sm p-10 rounded-[32px] border-rose-500/10">
+          <AlertTriangle className="text-rose-500 mx-auto mb-6" size={56} />
+          <h1 className="text-2xl font-black text-white mb-2">Acesso Bloqueado</h1>
+          <p className="text-slate-400 mb-8">Seu acesso foi bloqueado. Contate o administrador.</p>
+          <button onClick={() => { setCurrentUser(null); signOut(); }} className="btn-primary w-full">Sair</button>
+        </div>
+      </div>
+    );
+  }
   
   if (currentCompany && currentCompany.isPaused && currentUser.role !== 'SUPERADMIN') {
     return (

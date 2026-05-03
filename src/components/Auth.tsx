@@ -43,8 +43,8 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
           const isAdminEmail = data.user.email === 'admin@obraflow.com';
           onLogin({
             id: data.user.id,
-            companyId: isAdminEmail ? 'obraflow_master' : (data.user.user_metadata.companyId || `comp_${data.user.id}`),
-            name: data.user.user_metadata.full_name || data.user.email || '',
+            companyId: isAdminEmail ? 'obraflow_master' : (data.user.user_metadata.company_id || data.user.user_metadata.companyId || `comp_${data.user.id}`),
+            name: data.user.user_metadata.name || data.user.user_metadata.full_name || data.user.email || '',
             email: data.user.email || '',
             role: isAdminEmail ? 'SUPERADMIN' : (data.user.user_metadata.role || 'ADMIN')
           }, false);
@@ -56,9 +56,9 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
           password,
           options: {
             data: {
-              full_name: name,
+              name: name,
               role: email === 'admin@obraflow.com' ? 'SUPERADMIN' : 'ADMIN',
-              companyId: email === 'admin@obraflow.com' ? 'obraflow_master' : `comp_${Date.now()}`,
+              company_id: email === 'admin@obraflow.com' ? 'obraflow_master' : `comp_${Date.now()}`,
             }
           }
         });
@@ -70,22 +70,10 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
 
         if (data.user) {
           const isAdminEmail = data.user.email === 'admin@obraflow.com';
-          const companyId = isAdminEmail ? 'obraflow_master' : data.user.user_metadata.companyId || `comp_${Date.now()}`;
+          const companyId = isAdminEmail ? 'obraflow_master' : data.user.user_metadata.company_id || `comp_${Date.now()}`;
           
-          // Salvar perfil no Supabase para o painel admin
-          const { error: profileError } = await supabase.from('User').upsert({
-            id: data.user.id,
-            email: email,
-            name: name,
-            role: isAdminEmail ? 'SUPERADMIN' : 'ADMIN',
-            companyId: companyId,
-            password: 'AUTH_MANAGED',
-          }, { onConflict: 'email' });
+          // O trigger 'on_auth_user_created' no Supabase cuidará de criar o perfil na tabela 'profiles'
           
-          if (profileError) {
-            console.error('Erro ao salvar perfil no Supabase:', profileError);
-          }
-
           if (data.session === null) {
             setError('Conta criada! Verifique seu e-mail para confirmar o cadastro.');
           } else {

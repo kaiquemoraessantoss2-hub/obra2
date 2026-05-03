@@ -150,6 +150,7 @@ export interface User {
   email: string;
   role: 'SUPERADMIN' | 'ENGINEER' | 'ADMIN' | 'VIEWER';
   avatar?: string;
+  isActive?: boolean;
 }
 
 export const FLOOR_ORDER: Record<FloorType, number> = {

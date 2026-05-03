@@ -326,26 +326,21 @@ function UsersSection({ users, loading, onAdd, onDelete }: { users: UserType[]; 
         password: newUser.password,
         options: {
           data: {
-            full_name: newUser.name,
+            name: newUser.name,
             role: newUser.role,
-            companyId: newUser.companyId || `comp_${Date.now()}`,
+            company_id: newUser.companyId || `comp_${Date.now()}`,
           }
         }
       });
       if (error) { alert(`Erro: ${error.message}`); return; }
-      if (data.user) {
-        await supabase.from('User').upsert({
-          id: data.user.id,
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
-          companyId: newUser.companyId || `comp_${Date.now()}`,
-          password: 'AUTH_MANAGED',
-        }, { onConflict: 'email' });
-      }
+      
+      // O trigger 'on_auth_user_created' no Supabase criará automaticamente 
+      // o registro na tabela 'profiles' usando os metadados acima.
+      
       onAdd();
       setNewUser({ name: '', email: '', role: 'ENGINEER', companyId: '', password: '' });
       setShowAddForm(false);
+      alert('Usuário criado com sucesso! Ele precisará confirmar o e-mail se a confirmação estiver ativa no Supabase.');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
       alert(`Erro: ${errorMessage}`);

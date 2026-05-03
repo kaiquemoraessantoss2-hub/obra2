@@ -127,6 +127,11 @@ export async function getCurrentUser(): Promise<StoredUser | null> {
 
   if (!profile) return null;
 
+  if (profile.is_active === false) {
+    await supabase.auth.signOut();
+    return null;
+  }
+
   return {
     id: profile.id,
     email: user.email!,
@@ -246,7 +251,7 @@ export async function deleteCompany(companyId: string): Promise<boolean> {
 // =====================
 
 export async function loadProjects(companyId?: string): Promise<Project[]> {
-  let query = supabase.from('projects').select('*, floors(*)');
+  let query = supabase.from('projects').select('*, floors(*), project_phases(*)');
   if (companyId) query = query.eq('company_id', companyId);
   const { data, error } = await query;
   if (error) {
@@ -261,11 +266,20 @@ export async function loadProjects(companyId?: string): Promise<Project[]> {
     hasLeisure: p.has_leisure,
     hasAtrium: p.has_atrium,
     technicalAreas: p.technical_areas,
-    // Map nested floors to camelCase if needed
+    phases: (p.project_phases || []).map((ph: any) => ({
+      ...ph,
+      startDate: ph.start_date,
+      endDate: ph.end_date,
+      actualStartDate: ph.actual_start_date,
+      actualEndDate: ph.actual_end_date,
+      dependsOn: ph.depends_on,
+      subSteps: ph.sub_steps,
+      sortOrder: ph.sort_order
+    })).sort((a: any, b: any) => a.sortOrder - b.sortOrder),
     floors: (p.floors || []).map((f: any) => ({
       ...f,
       projectId: f.project_id
-    }))
+    })).sort((a: any, b: any) => a.number - b.number)
   })) as Project[];
 }
 

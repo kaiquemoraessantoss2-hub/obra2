@@ -8,7 +8,8 @@ import { Project, ConstructionPhase, BuildingConfig, Floor } from '@/types';
 export async function saveProjectData(project: Project): Promise<void> {
   if (!project.id) return;
   const { floors, phases, ...rest } = project;
-  await supabase.from('projects').upsert({
+  
+  const { error: projectError } = await supabase.from('projects').upsert({
     id: project.id,
     company_id: project.companyId,
     name: rest.name,
@@ -21,30 +22,51 @@ export async function saveProjectData(project: Project): Promise<void> {
     updated_at: new Date().toISOString(),
   });
 
-  if (floors && floors.length > 0) {
+  if (projectError) {
+    console.error('Error saving project:', projectError);
+    throw projectError;
+  }
+
+  // Sincronizar pavimentos
+  if (floors) {
     await supabase.from('floors').delete().eq('project_id', project.id);
-    await supabase.from('floors').insert(
-      floors.map(f => ({
-        id: f.id,
-        project_id: project.id,
-        number: f.number,
-        label: f.label,
-        type: f.type,
-        phase: f.phase,
-      }))
-    );
+    if (floors.length > 0) {
+      await supabase.from('floors').insert(
+        floors.map(f => ({
+          id: f.id,
+          project_id: project.id,
+          number: f.number,
+          label: f.label,
+          type: f.type,
+          phase: f.phase,
+        }))
+      );
+    }
+  }
+
+  // Sincronizar fases
+  if (phases) {
+    await saveProjectPhases(project.id, phases);
   }
 }
 
 export async function loadProjectData(projectId: string): Promise<Project | null> {
   if (!projectId) return null;
-  const { data: p, error } = await supabase
+  
+  // Buscar projeto e pavimentos
+  const { data: p, error: pError } = await supabase
     .from('projects')
     .select('*, floors(*)')
     .eq('id', projectId)
     .single();
 
-  if (error || !p) return null;
+  if (pError || !p) {
+    console.error('Error loading project base data:', pError);
+    return null;
+  }
+
+  // Buscar fases separadamente (mais seguro para evitar limites de join)
+  const phases = await loadProjectPhases(projectId);
 
   return {
     id: p.id,
@@ -56,12 +78,13 @@ export async function loadProjectData(projectId: string): Promise<Project | null
     hasLeisure: p.has_leisure,
     hasAtrium: p.has_atrium,
     technicalAreas: p.technical_areas,
-    floors: (p.floors ?? []).map((f) => ({
-      id: f.id as string,
-      number: f.number as number,
-      label: f.label as string,
-      type: f.type as Floor['type'],
-      phase: f.phase as string,
+    phases: phases || [],
+    floors: (p.floors ?? []).map((f: any) => ({
+      id: f.id,
+      number: f.number,
+      label: f.label,
+      type: f.type,
+      phase: f.phase,
       services: [],
     })),
   };
