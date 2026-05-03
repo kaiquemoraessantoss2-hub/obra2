@@ -306,7 +306,7 @@ export async function loadCompanies(): Promise<Company[]> {
   }));
 }
 
-export async function saveCompany(company: Company): Promise<void> {
+export async function saveCompany(company: Company): Promise<{ ok: boolean; error?: string }> {
   const record: any = {
     name: company.name,
     email: company.email,
@@ -323,18 +323,32 @@ export async function saveCompany(company: Company): Promise<void> {
   Object.keys(record).forEach(k => record[k] === undefined && delete record[k]);
 
   if (company.id) {
-    const { error } = await supabase.from('companies').upsert({ id: company.id, ...record });
-    if (error) console.error('saveCompany upsert error:', error);
+    const { error } = await supabase
+      .from('companies')
+      .update(record)
+      .eq('id', company.id);
+    if (error) {
+      console.error('saveCompany update error:', error);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
   } else {
     const { error } = await supabase.from('companies').insert(record);
-    if (error) console.error('saveCompany insert error:', error);
+    if (error) {
+      console.error('saveCompany insert error:', error);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
   }
 }
 
-export async function saveCompanies(companies: Company[]): Promise<void> {
+export async function saveCompanies(companies: Company[]): Promise<{ ok: boolean; errors: string[] }> {
+  const errors: string[] = [];
   for (const company of companies) {
-    await saveCompany(company);
+    const result = await saveCompany(company);
+    if (!result.ok && result.error) errors.push(`${company.name}: ${result.error}`);
   }
+  return { ok: errors.length === 0, errors };
 }
 
 export async function deleteCompany(companyId: string): Promise<boolean> {
