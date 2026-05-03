@@ -40,13 +40,26 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
         }
 
         if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_active')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (profile && profile.is_active === false) {
+            await supabase.auth.signOut();
+            setError('Usuário bloqueado. Contate o administrador.');
+            return;
+          }
+          
           const isAdminEmail = data.user.email === 'admin@obraflow.com';
           onLogin({
             id: data.user.id,
             companyId: isAdminEmail ? 'obraflow_master' : (data.user.user_metadata.company_id || data.user.user_metadata.companyId || `comp_${data.user.id}`),
             name: data.user.user_metadata.name || data.user.user_metadata.full_name || data.user.email || '',
             email: data.user.email || '',
-            role: isAdminEmail ? 'SUPERADMIN' : (data.user.user_metadata.role || 'ADMIN')
+            role: isAdminEmail ? 'SUPERADMIN' : (data.user.user_metadata.role || 'ADMIN'),
+            isActive: profile?.is_active ?? true
           }, false);
         }
       } else {

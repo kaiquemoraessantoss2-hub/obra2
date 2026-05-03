@@ -235,7 +235,12 @@ export default function GlobalApplication() {
     }));
     const mergedUsers = [...users];
     supabaseUsers.forEach((su: any) => {
-      if (!mergedUsers.find((u: any) => u.id === su.id)) mergedUsers.push(su);
+      const existingIndex = mergedUsers.findIndex((u: any) => u.id === su.id);
+      if (existingIndex >= 0) {
+        mergedUsers[existingIndex] = { ...mergedUsers[existingIndex], ...su };
+      } else {
+        mergedUsers.push(su);
+      }
     });
 
     setCompanies(mergedCompanies);
