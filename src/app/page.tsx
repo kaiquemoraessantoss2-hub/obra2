@@ -122,14 +122,15 @@ export default function GlobalApplication() {
   const handleAddDiscipline = () => {
     if (!newDisciplineName.trim() || !project) return;
     const discipline = newDisciplineName.trim();
-    setAllProjects(allProjects.map(ap => ap.id === project.id ? {
+    const updatedProjects = allProjects.map(ap => ap.id === project.id ? {
       ...ap,
       floors: (ap.floors || []).map(f => ({
         ...f,
         services: [...(f.services || []), { id: `svc_${f.id}_${Date.now()}`, name: discipline, status: 'NOT_STARTED' as Status }]
       }))
-    } : ap));
-    saveProjects(allProjects);
+    } : ap);
+    setAllProjects(updatedProjects);
+    saveProjects(updatedProjects);
     setNewDisciplineName('');
     setShowAddDiscipline(false);
     setToast({ message: "Disciplina adicionada!", type: 'success' });
@@ -137,14 +138,15 @@ export default function GlobalApplication() {
 
   const handleRemoveDiscipline = (discName: string) => {
     if (!project || !confirm(`Remover "${discName}" de todos os andares?`)) return;
-    setAllProjects(allProjects.map(ap => ap.id === project.id ? {
+    const updatedProjects = allProjects.map(ap => ap.id === project.id ? {
       ...ap,
       floors: (ap.floors || []).map(f => ({
         ...f,
         services: (f.services || []).filter((s: any) => s.name !== discName)
       }))
-    } : ap));
-    saveProjects(allProjects);
+    } : ap);
+    setAllProjects(updatedProjects);
+    saveProjects(updatedProjects);
     setToast({ message: "Disciplina removida!", type: 'success' });
   };
 
@@ -175,110 +177,54 @@ export default function GlobalApplication() {
   };
 
   const loadInitialData = useCallback(async () => {
-    initializeDefaultData();
+    if (!currentUser) {
+      setAllProjects([]);
+      setCompanies([]);
+      return;
+    }
+
     const storedCompanies = await loadCompanies();
-    const storedProjects = await loadProjects();
+    const storedProjects = await loadProjects(currentUser.companyId);
     const users = await getAllUsers();
     
-    const supabaseProfiles = await loadUserProfilesFromSupabase();
-    
-    const now = new Date();
-    const defaultEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    
-    const typedCompanies: Company[] = storedCompanies.map(c => ({
-      ...c,
-      id: c.id || `local_${Date.now()}`,
-      plan: c.plan as 'Básico' | 'Pro' | 'Empresa',
-      billingStatus: c.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED',
-      monthlyValue: c.monthlyValue ?? 0,
-      planStartDate: c.planStartDate || new Date().toISOString(),
-      planEndDate: c.planEndDate || new Date(Date.now() + 30*24*60*60*1000).toISOString(),
-      isPaused: c.isPaused ?? false,
-      activeUsers: c.activeUsers ?? 1,
-      createdAt: c.createdAt || new Date().toISOString()
-    }));
-    
-    const supabaseTypedCompanies: Company[] = supabaseProfiles
-      .filter((p: any) => p.role !== 'SUPERADMIN')
-      .map((p: any) => {
-        const existingCompany = typedCompanies.find(c => c.id === (p.company_id || p.companyId));
-        const planStartDate = existingCompany?.planStartDate || now.toISOString();
-        const planEndDate = existingCompany?.planEndDate || defaultEnd;
-        return {
-          id: p.company_id || p.companyId || `comp_${p.id}`,
-          name: p.name || p.email,
-          plan: (existingCompany?.plan as 'Básico' | 'Pro' | 'Empresa') || 'Básico',
-          monthlyValue: existingCompany?.monthlyValue || 199,
-          planStartDate,
-          planEndDate,
-          billingStatus: (existingCompany?.billingStatus as 'ACTIVE' | 'OVERDUE' | 'SUSPENDED' | 'EXPIRED') || 'ACTIVE',
-          isPaused: existingCompany?.isPaused ?? false,
-          activeUsers: existingCompany?.activeUsers ?? 1,
-          createdAt: existingCompany?.createdAt || now.toISOString()
-        };
-      });
-
-    const mergedCompanies = [...typedCompanies];
-    supabaseTypedCompanies.forEach(supabaseCompany => {
-      if (!mergedCompanies.find(c => c.id === supabaseCompany.id)) {
-        mergedCompanies.push(supabaseCompany);
-      }
-    });
-
-    const supabaseUsers = supabaseProfiles.map((p: any) => ({
-      id: p.id,
-      email: p.email,
-      name: p.name || p.email,
-      role: p.role || 'ADMIN',
-      companyId: p.company_id || p.companyId || `comp_${p.id}`,
-      isActive: p.isActive !== false
-    }));
-    const mergedUsers = [...users];
-    supabaseUsers.forEach((su: any) => {
-      const existingIndex = mergedUsers.findIndex((u: any) => u.id === su.id);
-      if (existingIndex >= 0) {
-        mergedUsers[existingIndex] = { ...mergedUsers[existingIndex], ...su };
-      } else {
-        mergedUsers.push(su);
-      }
-    });
-
-    setCompanies(mergedCompanies);
     const typedProjects: Project[] = storedProjects.map((p: any) => ({
       ...p,
       id: p.id || `proj_${Date.now()}`,
-      companyId: p.companyId || '',
+      companyId: p.companyId || p.company_id || '',
       name: p.name || 'Novo Projeto',
       location: p.location || '',
-      totalFloors: p.totalFloors ?? 1,
+      totalFloors: p.totalFloors ?? p.total_floors ?? 1,
       basements: p.basements ?? 0,
-      hasLeisure: p.hasLeisure ?? false,
-      hasAtrium: p.hasAtrium ?? false,
-      technicalAreas: p.technicalAreas ?? 0,
+      hasLeisure: p.hasLeisure ?? p.has_leisure ?? false,
+      hasAtrium: p.hasAtrium ?? p.has_atrium ?? false,
+      technicalAreas: p.technicalAreas ?? p.technical_areas ?? 0,
       floors: p.floors || [],
       phases: p.phases || []
     }));
     
+    setCompanies(storedCompanies);
     setAllProjects(typedProjects);
-    setAllUsers(mergedUsers);
+    setAllUsers(users);
     setIsInitialized(true);
     
-    if (typedProjects.length > 0 && mergedCompanies.length > 0) {
-      setCurrentViewCompanyId(mergedCompanies[0].id || '');
-      const firstProject = typedProjects[0];
-      setActiveProjectId(firstProject.id || '');
-      setCurrentProjectIndex(0);
-      const savedPhases = await loadProjectPhases(firstProject.id || '');
+    if (typedProjects.length > 0) {
+      const currentId = activeProjectId || typedProjects[0].id;
+      const projectIdx = typedProjects.findIndex(p => p.id === currentId);
+      const firstProject = projectIdx >= 0 ? typedProjects[projectIdx] : typedProjects[0];
+      
+      setActiveProjectId(firstProject.id);
+      setCurrentProjectIndex(projectIdx >= 0 ? projectIdx : 0);
+      
+      const [savedPhases, savedConfig] = await Promise.all([
+        loadProjectPhases(firstProject.id),
+        loadProjectConfig(firstProject.id)
+      ]);
+      
       setPhases(savedPhases || []);
-      const savedConfig = await loadProjectConfig(firstProject.id || '');
       setBuildingConfig(savedConfig);
-      if (savedPhases && savedPhases.length > 0) {
-        setShowEmptyPhaseState(false);
-      } else {
-        setShowEmptyPhaseState(true);
-      }
+      setShowEmptyPhaseState(!savedPhases || savedPhases.length === 0);
     }
-  }, []);
+  }, [currentUser, activeProjectId]);
 
   useEffect(() => {
     loadInitialData();
@@ -1189,13 +1135,15 @@ setToast({ message: "Plano renovado por +30 dias!", type: 'success' });
                       setToast({ message: `Plano alterado para ${newPlan}!`, type: 'success' });
                     }
                  }}
-                 onToggleUser={(userId: string, isActive: boolean) => {
-                   updateUserActive(userId, isActive);
-                   setAllUsers((prev: any[]) => prev.map((u: any) =>
-                     u.id === userId ? { ...u, isActive } : u
-                   ));
-                   setToast({ message: isActive ? "Usuário ativado!" : "Usuário desativado!", type: 'success' });
-                }}
+onToggleUser={async (userId: string, isActive: boolean) => {
+                    await updateUserActive(userId, isActive);
+                    const refreshedUsers = await getAllUsers();
+                    setAllUsers(refreshedUsers.map((u: any) => ({
+                      ...u,
+                      isActive: u.isActive ?? u.is_active ?? true
+                    })));
+                    setToast({ message: isActive ? "Usuário ativado!" : "Usuário desativado!", type: 'success' });
+                 }}
                 onDeleteUser={async (userId: string) => {
                    if (confirm('Tem certeza que deseja excluir este usuário?')) {
                       try {

@@ -311,7 +311,6 @@ export async function saveProject(project: Project): Promise<void> {
 
   // Sincronizar pavimentos
   if (floors && floors.length > 0) {
-    // Para simplificar, deletamos e inserimos novamente
     await supabase.from('floors').delete().eq('project_id', id);
     await supabase.from('floors').insert(
       floors.map(f => ({
@@ -321,6 +320,37 @@ export async function saveProject(project: Project): Promise<void> {
         label: f.label,
         type: f.type,
         phase: f.phase,
+      }))
+    );
+  }
+
+  // Sincronizar fases (Cronograma)
+  if (phases && phases.length > 0) {
+    await supabase.from('project_phases').delete().eq('project_id', id);
+    await supabase.from('project_phases').insert(
+      phases.map((ph, index) => ({
+        id: ph.id,
+        project_id: id,
+        name: ph.name,
+        icon: ph.icon,
+        color: ph.color,
+        progress: ph.progress,
+        status: ph.status,
+        weight: ph.weight,
+        start_date: ph.startDate || null,
+        end_date: ph.endDate || null,
+        actual_start_date: ph.actualStartDate || null,
+        actual_end_date: ph.actualEndDate || null,
+        responsible: ph.responsible,
+        observations: ph.observations,
+        depends_on: ph.dependsOn ?? [],
+        approved_by: ph.approvedBy,
+        approved_at: ph.approvedAt || null,
+        blocked_reason: ph.blockedReason,
+        sub_steps: ph.subSteps,
+        history: ph.history ?? [],
+        sort_order: index,
+        updated_at: new Date().toISOString()
       }))
     );
   }
