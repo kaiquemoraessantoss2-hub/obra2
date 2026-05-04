@@ -89,12 +89,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (memberError) {
-      return NextResponse.json({ error: memberError.message }, { status: 500 });
+      console.error('[POST /api/admin/members] team_members insert error:', memberError);
+      return NextResponse.json({ error: memberError.message, details: memberError }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, userId: data.user.id });
-  } catch {
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  } catch (err) {
+    console.error('[POST /api/admin/members] uncaught error:', err);
+    const msg = err instanceof Error ? err.message : 'Erro interno';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -121,7 +124,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  } catch (err) {
+    console.error('[DELETE /api/admin/members] uncaught error:', err);
+    const msg = err instanceof Error ? err.message : 'Erro interno';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
