@@ -21,6 +21,7 @@ import {
   Search,
   Box,
   Layers,
+  Package,
   Bell,
   ChevronDown,
   Trash2,
@@ -67,6 +68,8 @@ import FloorEditModal from '@/components/FloorEditModal';
 import BulkEditBar from '@/components/BulkEditBar';
 import ProjectSelectorBar from '@/components/ProjectSelectorBar';
 import EmptyPhaseState from '@/components/EmptyPhaseState';
+import PlansCatalog from '@/components/PlansCatalog';
+import ChangePlanModal from '@/components/ChangePlanModal';
 import { ModuleGuard, TeamPage, LoginPage, PendenciasSection, MedicaoObraSection } from '@/components/team';
 import { Floor, Status, User, BuildingConfig, ConstructionPhase, FloorExecution, SubStep } from '@/types';
 import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases, loadProjectPhases, removeProjectPhases, saveProjectConfig, loadProjectConfig, removeProjectConfig, saveProjectExecutions, loadProjectExecutions } from '@/lib/projectStorage';
@@ -90,6 +93,7 @@ export default function GlobalApplication() {
 
   // States - carregados do Supabase
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [changePlanCompany, setChangePlanCompany] = useState<Company | null>(null);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [buildingConfig, setBuildingConfig] = useState<BuildingConfig | null>(null);
   const [phases, setPhases] = useState<ConstructionPhase[]>([]);
@@ -1033,6 +1037,7 @@ if (currentMember) {
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Administração SaaS</p>
               <NavItem icon={Shield} label="Painel Master" active={activeTab === 'admin_dashboard'} onClick={() => setActiveTab('admin_dashboard')} />
               <NavItem icon={CreditCard} label="Faturamento" active={activeTab === 'billing'} onClick={() => setActiveTab('billing')} />
+              <NavItem icon={Package} label="Planos" active={activeTab === 'plans_catalog'} onClick={() => setActiveTab('plans_catalog')} />
               <NavItem icon={Settings} label="Configurações" active={activeTab === 'admin_settings'} onClick={() => setActiveTab('admin_settings')} />
             </div>
           ) : (
@@ -1084,15 +1089,9 @@ if (currentMember) {
                    }));
 setToast({ message: "Plano renovado por +30 dias!", type: 'success' });
                  }}
-                 onChangePlan={(companyId: string, currentPlan: string) => {
-                    const newPlan = prompt(`Plano atual: ${currentPlan}\nDigite o novo plano (Básico, Pro, Empresa):`);
-                    if (newPlan && ['Básico', 'Pro', 'Empresa'].includes(newPlan)) {
-                      const prices: Record<string, number> = { 'Básico': 199, 'Pro': 499, 'Empresa': 1200 };
-                      const updatedCompanies = companies.map(c => c.id === companyId ? { ...c, plan: newPlan as 'Básico' | 'Pro' | 'Empresa', monthlyValue: prices[newPlan] } : c);
-                      setCompanies(updatedCompanies);
-                      saveCompanies(updatedCompanies);
-                      setToast({ message: `Plano alterado para ${newPlan}!`, type: 'success' });
-                    }
+                 onChangePlan={(companyId: string) => {
+                    const company = companies.find(c => c.id === companyId);
+                    if (company) setChangePlanCompany(company);
                  }}
 onToggleUser={async (userId: string, isActive: boolean) => {
                     await updateUserActive(userId, isActive);
@@ -1157,6 +1156,12 @@ onRefresh={async () => {
 
 {currentUser.role === 'SUPERADMIN' && activeTab === 'billing' && (
               <BillingPanel companies={companies} />
+           )}
+
+           {currentUser.role === 'SUPERADMIN' && activeTab === 'plans_catalog' && (
+              <PlansCatalog
+                onToast={(message, type) => setToast({ message, type })}
+              />
            )}
 
            {currentUser.role === 'SUPERADMIN' && activeTab === 'admin_settings' && (
@@ -1676,6 +1681,29 @@ onRefresh={async () => {
             saveProjects(allProjects);
         }} existingPhotos={selectedFloor?.photos || []} />
       </main>
+
+      {changePlanCompany && (
+        <ChangePlanModal
+          company={changePlanCompany}
+          onCancel={() => setChangePlanCompany(null)}
+          onConfirm={async (plan) => {
+            const updated: Company = {
+              ...changePlanCompany,
+              plan: plan.name,
+              monthlyValue: plan.monthlyValue,
+            };
+            const result = await saveCompany(updated);
+            if (!result.ok) {
+              setToast({ message: `Erro ao alterar plano: ${result.error}`, type: 'error' });
+              return;
+            }
+            const fresh = await loadCompanies();
+            setCompanies(fresh);
+            setToast({ message: `Plano alterado para ${plan.name}!`, type: 'success' });
+            setChangePlanCompany(null);
+          }}
+        />
+      )}
     </div>
   );
 }
