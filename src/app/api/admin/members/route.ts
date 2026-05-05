@@ -75,7 +75,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (error || !data.user) {
-      return NextResponse.json({ error: error?.message ?? 'Erro ao criar usuário' }, { status: 500 });
+      console.error('[POST /api/admin/members] auth.admin.createUser error:', error);
+      return NextResponse.json({
+        error: error?.message ?? 'Erro ao criar usuário',
+        details: error,
+        stage: 'auth.admin.createUser',
+      }, { status: 500 });
     }
 
     const { error: memberError } = await adminClient.from('team_members').insert({
