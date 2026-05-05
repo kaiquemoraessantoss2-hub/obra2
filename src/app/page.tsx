@@ -1449,7 +1449,7 @@ onRefresh={async () => {
                ) : null}
 
 {activeTab === 'teams' && (
-                   <TeamPage ownerId={currentUser?.companyId || 'default'} plan="GOLD" />
+                   <TeamPage ownerId={currentUser?.id || 'default'} companyId={currentUser?.companyId || ''} plan="GOLD" />
                 )}
 
 {activeTab === 'reports' && (
