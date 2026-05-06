@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from './supabase';
+import { newId } from './utils';
 
 export interface StoredUser {
   id: string;
@@ -44,6 +45,7 @@ export interface Project {
   createdAt?: string;
   updatedAt?: string;
   basements?: number;
+  mezzanines?: number;
   hasLeisure?: boolean;
   hasAtrium?: boolean;
   technicalAreas?: number;
@@ -391,6 +393,7 @@ export async function loadProjects(companyId?: string): Promise<Project[]> {
     hasAtrium: p.has_atrium,
     technicalAreas: p.technical_areas,
     coverPhoto: p.cover_photo,
+    mezzanines: p.mezzanines,
     phases: (p.project_phases || []).map((ph: any) => ({
       ...ph,
       startDate: ph.start_date,
@@ -418,7 +421,7 @@ export async function saveProject(project: Project): Promise<void> {
   
   if (!id) return;
 
-  const record = {
+  const record: Record<string, any> = {
     id,
     name: rest.name,
     location: rest.location,
@@ -427,16 +430,37 @@ export async function saveProject(project: Project): Promise<void> {
     has_leisure: rest.hasLeisure,
     has_atrium: rest.hasAtrium,
     technical_areas: rest.technicalAreas,
-    cover_photo: rest.coverPhoto,
     company_id: company_id_final,
     updated_at: new Date().toISOString()
   };
+  if (rest.coverPhoto !== undefined) {
+    record.cover_photo = rest.coverPhoto;
+  }
+  if ((rest as any).mezzanines !== undefined) {
+    record.mezzanines = (rest as any).mezzanines;
+  }
 
   const { error: upsertError } = await supabase.from('projects').upsert(record);
-  
+
   if (upsertError) {
-    console.error('Error saving project:', upsertError);
-    return;
+    console.error('Erro ao salvar projeto:', upsertError);
+    // Retry removendo colunas opcionais (caso migrations não tenham sido aplicadas)
+    const droppedCols: string[] = [];
+    if (record.cover_photo !== undefined) {
+      delete record.cover_photo;
+      droppedCols.push('cover_photo');
+    }
+    if (record.mezzanines !== undefined) {
+      delete record.mezzanines;
+      droppedCols.push('mezzanines');
+    }
+    if (droppedCols.length === 0) return;
+    const { error: retryError } = await supabase.from('projects').upsert(record);
+    if (retryError) {
+      console.error(`Erro ao salvar projeto (retry sem ${droppedCols.join(', ')}):`, retryError);
+      return;
+    }
+    console.warn(`Projeto salvo SEM ${droppedCols.join(', ')} — aplique as migrations correspondentes.`);
   }
 
   // Sincronizar pavimentos
@@ -534,22 +558,57 @@ export async function saveTeamByCompany(companyId: string, team: TeamMember[]): 
 // CALENDAR
 // =====================
 
-export async function loadCalendarEvents(companyId: string): Promise<CalendarEvent[]> {
-  const { data, error } = await supabase
+export async function loadCalendarEvents(scope: { companyId: string; projectId?: string | null }): Promise<CalendarEvent[]> {
+  let query = supabase
     .from('calendar_events')
     .select('*')
-    .eq('company_id', companyId)
-    .order('date', { ascending: true });
-  if (error) return [];
+    .eq('company_id', scope.companyId);
+  if (scope.projectId) {
+    query = query.eq('project_id', scope.projectId);
+  } else {
+    query = query.is('project_id', null);
+  }
+  const { data, error } = await query.order('date', { ascending: true });
+  if (error) {
+    console.error('Erro ao carregar calendar_events:', error);
+    return [];
+  }
   return data ?? [];
 }
 
-export async function saveCalendarEvents(companyId: string, events: CalendarEvent[]): Promise<void> {
-  await supabase.from('calendar_events').delete().eq('company_id', companyId);
-  if (events.length > 0) {
-    await supabase.from('calendar_events').insert(
-      events.map(e => ({ ...e, company_id: companyId }))
-    );
+export async function saveCalendarEvents(scope: { companyId: string; projectId?: string | null }, events: CalendarEvent[]): Promise<void> {
+  let delQuery = supabase.from('calendar_events').delete().eq('company_id', scope.companyId);
+  if (scope.projectId) {
+    delQuery = delQuery.eq('project_id', scope.projectId);
+  } else {
+    delQuery = delQuery.is('project_id', null);
+  }
+  const { error: delError } = await delQuery;
+  if (delError) {
+    console.error('Error clearing calendar_events:', delError);
+    return;
+  }
+  if (events.length === 0) return;
+
+  const rows = events.map(e => ({
+    id: e.id && e.id.length > 0 ? e.id : newId(),
+    company_id: scope.companyId,
+    project_id: scope.projectId ?? null,
+    title: e.title,
+    type: e.type,
+    day: e.day,
+    time: e.time,
+    status: e.status ?? 'PENDING',
+    description: e.description ?? null,
+  }));
+  const { error: insError } = await supabase.from('calendar_events').insert(rows);
+  if (insError) {
+    console.error('Error saving calendar_events:', insError);
+    // Fallback: tenta sem project_id (caso a migration 010 não tenha sido aplicada)
+    const fallbackRows = rows.map(({ project_id, ...rest }) => rest);
+    const { error: retryErr } = await supabase.from('calendar_events').insert(fallbackRows);
+    if (retryErr) console.error('Retry sem project_id também falhou:', retryErr);
+    else console.warn('Calendar salvo SEM project_id — rode a migration 010_calendar_events_per_project.sql');
   }
 }
 

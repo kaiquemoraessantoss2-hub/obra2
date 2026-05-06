@@ -101,35 +101,51 @@ export async function deleteProjectData(projectId: string): Promise<void> {
 
 export async function saveProjectPhases(projectId: string, phases: ConstructionPhase[]): Promise<void> {
   if (!projectId) return;
-  await supabase.from('project_phases').delete().eq('project_id', projectId);
+  const { error: delError } = await supabase
+    .from('project_phases')
+    .delete()
+    .eq('project_id', projectId);
+  if (delError) {
+    console.error('Erro ao limpar project_phases:', delError);
+    return;
+  }
+  if (phases.length === 0) return;
 
-  if (phases.length > 0) {
-    await supabase.from('project_phases').insert(
-      phases.map((phase, index) => ({
-        id: phase.id,
-        project_id: projectId,
-        name: phase.name,
-        icon: phase.icon,
-        color: phase.color,
-        progress: phase.progress,
-        status: phase.status,
-        weight: phase.weight,
-        start_date: phase.startDate || null,
-        end_date: phase.endDate || null,
-        actual_start_date: phase.actualStartDate || null,
-        actual_end_date: phase.actualEndDate || null,
-        responsible: phase.responsible,
-        observations: phase.observations,
-        depends_on: phase.dependsOn ?? [],
-        approved_by: phase.approvedBy,
-        approved_at: phase.approvedAt || null,
-        blocked_reason: phase.blockedReason,
-        sub_steps: phase.subSteps,
-        history: phase.history ?? [],
-        sort_order: index,
-        updated_at: new Date().toISOString(),
-      }))
-    );
+  const rows = phases.map((phase, index) => ({
+    id: phase.id,
+    project_id: projectId,
+    name: phase.name,
+    icon: phase.icon,
+    color: phase.color,
+    progress: phase.progress,
+    status: phase.status,
+    weight: phase.weight,
+    start_date: phase.startDate || null,
+    end_date: phase.endDate || null,
+    actual_start_date: phase.actualStartDate || null,
+    actual_end_date: phase.actualEndDate || null,
+    responsible: phase.responsible,
+    observations: phase.observations,
+    depends_on: phase.dependsOn ?? [],
+    approved_by: phase.approvedBy,
+    approved_at: phase.approvedAt || null,
+    blocked_reason: phase.blockedReason,
+    sub_steps: phase.subSteps,
+    history: phase.history ?? [],
+    sort_order: index,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error: batchError } = await supabase.from('project_phases').insert(rows);
+  if (!batchError) return;
+
+  console.error('Erro ao inserir project_phases em lote:', batchError);
+  // Fallback: insere uma por uma para não perder todas se uma específica falhar
+  for (const row of rows) {
+    const { error: rowError } = await supabase.from('project_phases').insert(row);
+    if (rowError) {
+      console.error(`Falha ao inserir fase "${row.name}" (id=${row.id}):`, rowError);
+    }
   }
 }
 
@@ -177,7 +193,7 @@ export async function removeProjectPhases(projectId: string): Promise<void> {
 
 export async function saveProjectConfig(projectId: string, config: BuildingConfig): Promise<void> {
   if (!projectId) return;
-  await supabase.from('building_configs').upsert({
+  const record: Record<string, any> = {
     id: config.id,
     project_id: projectId,
     name: config.name,
@@ -192,7 +208,20 @@ export async function saveProjectConfig(projectId: string, config: BuildingConfi
     total_units: config.totalUnits,
     floors: config.floors,
     updated_at: new Date().toISOString(),
-  });
+  };
+  if (config.mezzanines !== undefined) {
+    record.mezzanines = config.mezzanines;
+  }
+  const { error } = await supabase.from('building_configs').upsert(record);
+  if (error) {
+    console.error('Erro ao salvar building_config:', error);
+    if (record.mezzanines !== undefined) {
+      delete record.mezzanines;
+      const { error: retry } = await supabase.from('building_configs').upsert(record);
+      if (retry) console.error('Retry sem mezzanines também falhou:', retry);
+      else console.warn('building_config salvo SEM mezzanines — rode a migration 012');
+    }
+  }
 }
 
 export async function loadProjectConfig(projectId: string): Promise<BuildingConfig | null> {
@@ -211,6 +240,7 @@ export async function loadProjectConfig(projectId: string): Promise<BuildingConf
     address: data.address ?? '',
     totalFloors: data.total_floors,
     basements: data.basements,
+    mezzanines: data.mezzanines ?? 0,
     hasLeisure: data.has_leisure,
     hasAtrium: data.has_atrium,
     hasRooftop: data.has_rooftop,

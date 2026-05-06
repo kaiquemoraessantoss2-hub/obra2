@@ -21,6 +21,7 @@ interface TeamPageProps {
 
 export default function TeamPage({ ownerId = 'default', plan = 'GOLD', companyId = '' }: TeamPageProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
@@ -33,11 +34,29 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD', companyId
       .from('team_members')
       .select('*')
       .eq('company_id', companyId);
-    if (!error && data) setMembers(data as unknown as TeamMember[]);
+    if (!error && data) {
+      const mapped = (data as any[]).map(m => ({
+        ...m,
+        projectIds: Array.isArray(m.project_ids) ? m.project_ids : undefined,
+      })) as TeamMember[];
+      setMembers(mapped);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { loadMembers(); }, [companyId]);
+  const loadProjects = async () => {
+    if (!companyId) return;
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, name')
+      .eq('company_id', companyId);
+    if (!error && data) setProjects(data as { id: string; name: string }[]);
+  };
+
+  useEffect(() => {
+    loadMembers();
+    loadProjects();
+  }, [companyId]);
 
   const { maxMembers, label: planLabel } = PLAN_LIMITS[plan];
   const currentCount = members.length;
@@ -87,9 +106,28 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD', companyId
     setShowPermModal(true);
   };
 
-  const handleSavePermissions = async (memberId: string, permissions: Record<AppModule, AccessLevel>) => {
-    await supabase.from('team_members').update({ permissions }).eq('id', memberId);
-    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, permissions } : m));
+  const handleSavePermissions = async (
+    memberId: string,
+    permissions: Record<AppModule, AccessLevel>,
+    projectIds: string[] | null
+  ) => {
+    const update: Record<string, any> = { permissions, project_ids: projectIds };
+    const { error } = await supabase.from('team_members').update(update).eq('id', memberId);
+    if (error) {
+      console.error('Erro ao salvar permissões:', error);
+      // Fallback se a coluna project_ids ainda não existir (migration 011 não aplicada)
+      if (projectIds !== null) {
+        await supabase.from('team_members').update({ permissions }).eq('id', memberId);
+        showToast('Permissões salvas (rode a migration 011 para acesso por obra)');
+      } else {
+        showToast(`Erro: ${error.message}`);
+        return;
+      }
+    }
+    setMembers(prev => prev.map(m => m.id === memberId
+      ? { ...m, permissions, projectIds: projectIds ?? undefined }
+      : m
+    ));
     showToast('Permissões salvas');
   };
 
@@ -189,6 +227,7 @@ export default function TeamPage({ ownerId = 'default', plan = 'GOLD', companyId
         isOpen={showPermModal}
         onClose={() => setShowPermModal(false)}
         member={selectedMember}
+        projects={projects}
         onSave={handleSavePermissions}
       />
     </div>

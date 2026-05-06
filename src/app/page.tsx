@@ -86,6 +86,10 @@ export default function GlobalApplication() {
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +102,7 @@ export default function GlobalApplication() {
   const [buildingConfig, setBuildingConfig] = useState<BuildingConfig | null>(null);
   const [phases, setPhases] = useState<ConstructionPhase[]>([]);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isCreatingNewProject, setIsCreatingNewProject] = useState(false);
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
   const [editingExecution, setEditingExecution] = useState<{ phaseId: string; subStepId: string; execution: FloorExecution } | null>(null);
@@ -110,7 +115,7 @@ export default function GlobalApplication() {
       // Primeiro verifica se é um team_member — esses têm UI restrita por permissões.
       const { data: member } = await supabase
         .from('team_members')
-        .select('id, name, email, permissions, is_active')
+        .select('id, name, email, permissions, is_active, project_ids, company_id')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -125,6 +130,8 @@ export default function GlobalApplication() {
           name: member.name,
           email: member.email,
           permissions: member.permissions || {},
+          projectIds: Array.isArray(member.project_ids) ? member.project_ids : null,
+          companyId: member.company_id || '',
         });
         return;
       }
@@ -424,7 +431,13 @@ export default function GlobalApplication() {
   };
 
   const currentCompany = companies.find(c => c.id === currentViewCompanyId) || (companies.length > 0 ? companies[0] : null);
-  const companyProjects = currentViewCompanyId ? allProjects.filter(p => p.companyId === currentViewCompanyId) : [];
+  const allCompanyProjects = currentViewCompanyId ? allProjects.filter(p => p.companyId === currentViewCompanyId) : [];
+  // Se for um team_member com lista restrita de obras, filtra apenas as autorizadas.
+  // Owner/admin (currentUser) ou membro com projectIds null/vazio veem todas.
+  const memberAllowedProjectIds = currentMember?.projectIds;
+  const companyProjects = (Array.isArray(memberAllowedProjectIds) && memberAllowedProjectIds.length > 0)
+    ? allCompanyProjects.filter(p => memberAllowedProjectIds.includes(p.id))
+    : allCompanyProjects;
   const project = companyProjects[currentProjectIndex] || (companyProjects.length > 0 ? companyProjects[0] : null);
 
   useEffect(() => {
@@ -562,6 +575,28 @@ export default function GlobalApplication() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      setToast({ message: 'A senha deve ter no mínimo 6 caracteres.', type: 'error' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setToast({ message: 'As senhas não coincidem.', type: 'error' });
+      return;
+    }
+    setSavingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
+    if (error) {
+      setToast({ message: `Erro ao alterar senha: ${error.message}`, type: 'error' });
+      return;
+    }
+    setToast({ message: 'Senha alterada com sucesso!', type: 'success' });
+    setIsChangingPassword(false);
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
   const handleUpdateSubStep = (phaseId: string, subStepId: string, newProgress: number) => {
     if (!project) return;
     
@@ -584,10 +619,21 @@ export default function GlobalApplication() {
     }
   };
 
+  const openNewProjectModal = () => {
+    setActiveProjectId(null);
+    setBuildingConfig(null);
+    setPhases([]);
+    setEditingProjectIndex(null);
+    setShowEmptyPhaseState(false);
+    setIsCreatingNewProject(true);
+    setIsConfigModalOpen(true);
+  };
+
   const handleSaveBuildingConfig = (config: BuildingConfig) => {
     setBuildingConfig(config);
-    if (activeProjectId) {
+    if (activeProjectId && !isCreatingNewProject) {
       saveProjectConfig(activeProjectId, config);
+      setIsCreatingNewProject(false);
       setToast({ message: "Prédio configurado!", type: 'success' });
     } else {
       const newProj: Project = {
@@ -597,6 +643,7 @@ export default function GlobalApplication() {
         location: config.address,
         totalFloors: config.totalFloors,
         basements: config.basements,
+        mezzanines: config.mezzanines,
         hasLeisure: config.hasLeisure,
         hasAtrium: config.hasAtrium,
         technicalAreas: config.technicalAreas,
@@ -609,6 +656,7 @@ export default function GlobalApplication() {
       setCurrentProjectIndex(updatedProjects.length - 1);
       setActiveProjectId(newProj.id ?? null);
       saveProjectConfig(newProj.id ?? '', config);
+      setIsCreatingNewProject(false);
       setToast({ message: "Obra criada a partir do prédio!", type: 'success' });
     }
   };
@@ -1217,7 +1265,7 @@ onRefresh={async () => {
                          <Upload size={16} className="group-hover:-translate-y-1 transition-transform" /> 
                          Importar
                       </button>
-                      <button onClick={() => setIsConfigModalOpen(true)} className="btn-primary flex items-center gap-2 shadow-blue-600/40">
+                      <button onClick={openNewProjectModal} className="btn-primary flex items-center gap-2 shadow-blue-600/40">
                          <Plus size={18}/> Nova Obra
                       </button>
 </div>
@@ -1229,7 +1277,7 @@ onRefresh={async () => {
                         projects={companyProjects}
                         activeProjectId={activeProjectId}
                         onSelectProject={selectProject}
-                        onCreateProject={() => setIsConfigModalOpen(true)}
+                        onCreateProject={openNewProjectModal}
                       />
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1302,7 +1350,7 @@ onRefresh={async () => {
                     </ModuleGuard>
                   )}
 
-{activeTab === 'calendar' && <ConstructionCalendar companyId={currentViewCompanyId} />}
+{activeTab === 'calendar' && <ConstructionCalendar companyId={currentViewCompanyId} projectId={activeProjectId} />}
 
                 {activeTab === 'engineering' && (
                   <ModuleGuard module="PAVIMENTOS" access="VER">
@@ -1449,7 +1497,7 @@ onRefresh={async () => {
                           <div className="col-span-full glass-card p-12 rounded-[40px] text-center">
                             <h3 className="text-xl font-black text-white mb-4">Nenhum projeto encontrado</h3>
                             <p className="text-slate-500 mb-6">Crie seu primeiro projeto para começar</p>
-                            <button onClick={() => setIsConfigModalOpen(true)} className="btn-primary">Criar Projeto</button>
+                            <button onClick={openNewProjectModal} className="btn-primary">Criar Projeto</button>
                           </div>
                         ) : (
                           companyProjects.map((p, i) => (
@@ -1644,18 +1692,56 @@ onRefresh={async () => {
                         
                         <div className="bg-slate-800/50 p-4 rounded-2xl">
                           <label className="text-slate-400 text-xs font-bold uppercase tracking-wider block mb-2">Senha</label>
-                          <div className="flex items-center gap-3">
-                            <input 
-                              type="password" 
-                              defaultValue="********" 
-                              className="bg-transparent text-white font-medium flex-1 outline-none"
-                              readOnly
-                            />
-                            <button className="text-blue-400 text-sm hover:text-blue-300 flex items-center gap-1">
-                              <Key className="w-3 h-3" />
-                              Alterar
-                            </button>
-                          </div>
+                          {!isChangingPassword ? (
+                            <div key="pwd-display" className="flex items-center gap-3">
+                              <span className="text-white font-medium tracking-widest flex-1">••••••••</span>
+                              <button
+                                onClick={() => setIsChangingPassword(true)}
+                                className="text-blue-400 text-sm hover:text-blue-300 flex items-center gap-1"
+                              >
+                                <Key className="w-3 h-3" />
+                                Alterar
+                              </button>
+                            </div>
+                          ) : (
+                            <div key="pwd-form" className="space-y-3">
+                              <input
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Nova senha (mín. 6 caracteres)"
+                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:border-blue-500"
+                                autoFocus
+                              />
+                              <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="Confirmar nova senha"
+                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:border-blue-500"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setIsChangingPassword(false);
+                                    setNewPassword('');
+                                    setConfirmPassword('');
+                                  }}
+                                  disabled={savingPassword}
+                                  className="flex-1 py-2 text-slate-400 hover:text-white text-sm font-bold"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={handleChangePassword}
+                                  disabled={savingPassword}
+                                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl text-white text-sm font-bold"
+                                >
+                                  {savingPassword ? 'Salvando...' : 'Salvar nova senha'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1686,9 +1772,12 @@ onRefresh={async () => {
 
         <BuildingConfigModal
           isOpen={isConfigModalOpen}
-          onClose={() => setIsConfigModalOpen(false)}
+          onClose={() => {
+            setIsConfigModalOpen(false);
+            setIsCreatingNewProject(false);
+          }}
           onSave={handleSaveBuildingConfig}
-          existingConfig={buildingConfig}
+          existingConfig={isCreatingNewProject ? null : buildingConfig}
         />
 
         <FloorEditModal

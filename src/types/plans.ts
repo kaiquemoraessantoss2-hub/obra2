@@ -37,6 +37,12 @@ export interface TeamMember {
   isActive: boolean;
   createdAt?: string;
   permissions: Record<AppModule, AccessLevel>;
+  /**
+   * Lista de IDs das obras que o membro pode acessar.
+   * `undefined` ou array vazio = acesso a todas as obras (padrão).
+   * Caso preenchido, o acesso é restrito a essas obras específicas.
+   */
+  projectIds?: string[];
 }
 
 export const PLAN_LIMITS: Record<PlanType, { maxMembers: number; label: string }> = {

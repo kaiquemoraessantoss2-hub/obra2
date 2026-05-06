@@ -15,6 +15,7 @@ interface BuildingConfigModalProps {
 const FLOOR_TYPES: { value: FloorType; label: string }[] = [
   { value: 'BASEMENT', label: 'Subsolo' },
   { value: 'GROUND', label: 'Térreo' },
+  { value: 'MEZZANINE', label: 'Sobressolo' },
   { value: 'LEISURE', label: 'Lazer' },
   { value: 'REGULAR', label: 'Regular' },
   { value: 'TECHNICAL', label: 'Técnico' },
@@ -26,6 +27,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
     address: '',
     totalFloors: 15,
     basements: 2,
+    mezzanines: 0,
     hasLeisure: true,
     hasAtrium: false,
     hasRooftop: false,
@@ -39,12 +41,15 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
+    setConfirmOverwrite(false);
     if (existingConfig) {
       setFormData({
         name: existingConfig.name,
         address: existingConfig.address,
         totalFloors: existingConfig.totalFloors,
         basements: existingConfig.basements,
+        mezzanines: existingConfig.mezzanines ?? 0,
         hasLeisure: existingConfig.hasLeisure,
         hasAtrium: existingConfig.hasAtrium,
         hasRooftop: existingConfig.hasRooftop,
@@ -55,10 +60,11 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
       setHasExistingFloors(existingConfig.floors && existingConfig.floors.length > 0);
     } else {
       setFormData({
-        name: 'Residencial Aurora',
+        name: '',
         address: '',
         totalFloors: 15,
         basements: 2,
+        mezzanines: 0,
         hasLeisure: true,
         hasAtrium: false,
         hasRooftop: false,
@@ -99,6 +105,17 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
       phase: 'Structure',
       services: [],
     });
+
+    for (let i = 1; i <= formData.mezzanines; i++) {
+      floors.push({
+        id: newId(),
+        number: 0.5 + (i - 1) * 0.01,
+        label: formData.mezzanines === 1 ? 'Sobressolo' : `${i}º Sobressolo`,
+        type: 'MEZZANINE',
+        phase: 'Masonry',
+        services: [],
+      });
+    }
 
     if (formData.hasLeisure) {
       floors.push({
@@ -205,8 +222,12 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
             <Building2 className="text-blue-500" size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-white">Configurar Prédio</h2>
-            <p className="text-slate-500 text-sm">Defina as características do empreendimento</p>
+            <h2 className="text-2xl font-black text-white">{existingConfig ? 'Configurar Prédio' : 'Nova Obra'}</h2>
+            <p className="text-slate-500 text-sm">
+              {existingConfig
+                ? 'Atualize as características do empreendimento'
+                : 'Defina as características da nova obra'}
+            </p>
           </div>
         </div>
 
@@ -255,12 +276,12 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
                 <Layers size={12} /> Andares Tipo
               </label>
-              <input 
+              <input
                 type="number"
                 min={1}
                 value={formData.totalFloors}
@@ -272,11 +293,23 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
               <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
                 <Layers size={12} /> Subsolos
               </label>
-              <input 
+              <input
                 type="number"
                 min={0}
                 value={formData.basements}
                 onChange={(e) => setFormData({ ...formData, basements: parseInt(e.target.value) || 0 })}
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 ml-1 uppercase flex items-center gap-2">
+                <Layers size={12} /> Sobressolos
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={formData.mezzanines}
+                onChange={(e) => setFormData({ ...formData, mezzanines: parseInt(e.target.value) || 0 })}
                 className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
               />
             </div>
@@ -361,6 +394,7 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
                       "px-3 py-1 rounded-lg text-xs font-black",
                       floor.type === 'BASEMENT' && "bg-slate-700/50 text-slate-400",
                       floor.type === 'GROUND' && "bg-blue-600/20 text-blue-400",
+                      floor.type === 'MEZZANINE' && "bg-cyan-600/20 text-cyan-400",
                       floor.type === 'LEISURE' && "bg-purple-600/20 text-purple-400",
                       floor.type === 'REGULAR' && "bg-emerald-600/20 text-emerald-400",
                       floor.type === 'TECHNICAL' && "bg-amber-600/20 text-amber-400",
@@ -388,7 +422,9 @@ export default function BuildingConfigModal({ isOpen, onClose, onSave, existingC
           </button>
           <button onClick={handleSubmit} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
             <Check size={18} />
-            {hasExistingFloors ? 'Atualizar Configuração' : 'Gerar Pavimentos'}
+            {existingConfig
+              ? (hasExistingFloors ? 'Atualizar Configuração' : 'Gerar Pavimentos')
+              : 'Criar Obra'}
           </button>
         </div>
       </div>

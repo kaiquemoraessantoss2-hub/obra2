@@ -5,21 +5,24 @@ import { loadCalendarEvents, saveCalendarEvents, CalendarEvent as CalendarEventT
 
 interface Props {
   companyId: string;
+  projectId?: string | null;
 }
 
-export default function ConstructionCalendar({ companyId }: Props) {
+export default function ConstructionCalendar({ companyId, projectId }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', type: 'TASK' as 'DELIVERY' | 'TASK', day: 1, time: '08:00' });
 
   useEffect(() => {
-    loadCalendarEvents(companyId).then(setEvents);
-  }, [companyId]);
+    loadCalendarEvents({ companyId, projectId }).then(setEvents);
+  }, [companyId, projectId]);
 
-  const handleSaveEvents = (newEvents: CalendarEventType[]) => {
+  const handleSaveEvents = async (newEvents: CalendarEventType[]) => {
     setEvents(newEvents);
-    saveCalendarEvents(companyId, newEvents);
+    await saveCalendarEvents({ companyId, projectId }, newEvents);
+    const refreshed = await loadCalendarEvents({ companyId, projectId });
+    setEvents(refreshed);
   };
 
   const completedEvents = events.filter(e => e.status === 'COMPLETED').length;

@@ -10,32 +10,58 @@ import {
   MODULE_LABELS,
 } from '@/types/plans';
 
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
 interface PermissionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   member: TeamMember | null;
-  onSave: (memberId: string, permissions: Record<AppModule, AccessLevel>) => void;
+  projects?: ProjectOption[];
+  onSave: (
+    memberId: string,
+    permissions: Record<AppModule, AccessLevel>,
+    projectIds: string[] | null
+  ) => void;
 }
 
 export default function PermissionsModal({
   isOpen,
   onClose,
   member,
+  projects = [],
   onSave,
 }: PermissionsModalProps) {
   const [permissions, setPermissions] = useState<Record<AppModule, AccessLevel>>(
     {} as Record<AppModule, AccessLevel>
   );
+  const [accessAllProjects, setAccessAllProjects] = useState(true);
+  const [allowedProjectIds, setAllowedProjectIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (member) {
       setPermissions({ ...member.permissions });
+      const restricted = Array.isArray(member.projectIds) && member.projectIds.length > 0;
+      setAccessAllProjects(!restricted);
+      setAllowedProjectIds(new Set(member.projectIds ?? []));
     }
   }, [member]);
 
+  const toggleProject = (id: string) => {
+    setAllowedProjectIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleSave = () => {
     if (member) {
-      onSave(member.id, permissions);
+      const projectIds = accessAllProjects ? null : Array.from(allowedProjectIds);
+      onSave(member.id, permissions, projectIds);
       onClose();
     }
   };
@@ -93,6 +119,55 @@ export default function PermissionsModal({
             })}
           </tbody>
         </table>
+
+        <div className="mt-8 pt-6 border-t border-white/10">
+          <h4 className="text-sm font-black text-white mb-4">Acesso às Obras</h4>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-xl cursor-pointer hover:bg-white/5">
+              <input
+                type="radio"
+                name="projects-access"
+                checked={accessAllProjects}
+                onChange={() => setAccessAllProjects(true)}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-sm text-white">Acessar todas as obras</span>
+            </label>
+            <label className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-xl cursor-pointer hover:bg-white/5">
+              <input
+                type="radio"
+                name="projects-access"
+                checked={!accessAllProjects}
+                onChange={() => setAccessAllProjects(false)}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-sm text-white">Restringir a obras específicas</span>
+            </label>
+          </div>
+
+          {!accessAllProjects && (
+            <div className="mt-4 max-h-48 overflow-y-auto space-y-2 pr-1">
+              {projects.length === 0 ? (
+                <p className="text-xs text-slate-500 italic px-3">Nenhuma obra cadastrada ainda.</p>
+              ) : (
+                projects.map(p => (
+                  <label
+                    key={p.id}
+                    className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:border-white/20"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={allowedProjectIds.has(p.id)}
+                      onChange={() => toggleProject(p.id)}
+                      className="w-4 h-4 accent-blue-600"
+                    />
+                    <span className="text-sm text-white">{p.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="flex gap-3 mt-8">
           <button
