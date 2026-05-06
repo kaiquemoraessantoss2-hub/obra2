@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Pencil, X, Check, MapPin, Building, Trash2, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Pencil, X, Check, MapPin, Building, Trash2, Plus, ChevronLeft, ChevronRight, Upload, Image as ImageIcon } from 'lucide-react';
 import { Project, Floor, Status } from '@/types';
 import { cn, newId } from '@/lib/utils';
 import { saveProject } from '@/lib/auth';
@@ -23,9 +23,35 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
     hasLeisure: project.hasLeisure,
     hasAtrium: project.hasAtrium,
     technicalAreas: project.technicalAreas ?? 0,
+    coverPhoto: project.coverPhoto,
   });
   const [showFloorEdit, setShowFloorEdit] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const floors = project.floors || [];
+
+  const handleCoverPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Selecione um arquivo de imagem.');
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 4MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setEditData(prev => ({ ...prev, coverPhoto: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const removeCoverPhoto = () => {
+    setEditData(prev => ({ ...prev, coverPhoto: undefined }));
+  };
 
   type EditableField = string | number | boolean;
 
@@ -43,6 +69,7 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
       hasLeisure: editData.hasLeisure,
       hasAtrium: editData.hasAtrium,
       technicalAreas: editData.technicalAreas,
+      coverPhoto: editData.coverPhoto,
     };
     onUpdate(updated);
     onClose();
@@ -121,6 +148,54 @@ export default function ProjectEditCard({ project, companyId, onUpdate, onDelete
         <button onClick={onClose} className="p-2 text-slate-500 hover:text-white">
           <X size={20} />
         </button>
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black text-slate-600 uppercase">Foto do Prédio</label>
+        <div className="mt-2 relative rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+          {editData.coverPhoto ? (
+            <div className="relative">
+              <img
+                src={editData.coverPhoto}
+                alt="Foto do prédio"
+                className="w-full h-48 object-cover"
+              />
+              <div className="absolute top-3 right-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="px-3 py-2 bg-black/60 backdrop-blur-sm text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-black/80"
+                >
+                  <Upload size={14} /> Trocar
+                </button>
+                <button
+                  type="button"
+                  onClick={removeCoverPhoto}
+                  className="p-2 bg-rose-600/80 text-white rounded-xl hover:bg-rose-600"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="w-full h-48 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-white hover:bg-white/[0.03] transition-all"
+            >
+              <ImageIcon size={32} />
+              <span className="text-sm font-bold">Adicionar foto do prédio</span>
+              <span className="text-[10px] text-slate-600">JPG ou PNG, até 4MB</span>
+            </button>
+          )}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleCoverPhotoUpload}
+            className="hidden"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

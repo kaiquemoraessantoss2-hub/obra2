@@ -105,33 +105,56 @@ export default function GlobalApplication() {
   // Handle authentication state changes
   useEffect(() => {
     const handleAuth = async (session: any) => {
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
+      if (!session?.user) return;
 
-        if (profile) {
-          if (profile.is_active === false) {
-            await supabase.auth.signOut();
-            return;
-          }
-          
-          setCurrentUser({
-            id: profile.id,
-            email: session.user.email || '',
-            name: profile.name || session.user.email || '',
-            role: (profile.role as any) || 'ADMIN',
-            companyId: profile.company_id || '',
-            isActive: true
-          });
+      // Primeiro verifica se é um team_member — esses têm UI restrita por permissões.
+      const { data: member } = await supabase
+        .from('team_members')
+        .select('id, name, email, permissions, is_active')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (member) {
+        if (member.is_active === false) {
+          await supabase.auth.signOut();
+          return;
         }
+        setCurrentUser(null);
+        setCurrentMember({
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          permissions: member.permissions || {},
+        });
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profile) {
+        if (profile.is_active === false) {
+          await supabase.auth.signOut();
+          return;
+        }
+
+        setCurrentMember(null);
+        setCurrentUser({
+          id: profile.id,
+          email: session.user.email || '',
+          name: profile.name || session.user.email || '',
+          role: (profile.role as any) || 'ADMIN',
+          companyId: profile.company_id || '',
+          isActive: true
+        });
       }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
         setCurrentUser(null);
         setCurrentMember(null);
       } else {
@@ -965,7 +988,8 @@ if (currentMember) {
     );
   }
 
-  if (!currentUser) return <Auth onLogin={handleLogin} />;
+  if (!currentUser && !currentMember) return <Auth onLogin={handleLogin} />;
+  if (!currentUser) return null;
   
   if (currentUser.isActive === false) {
     return (
@@ -1429,18 +1453,30 @@ onRefresh={async () => {
                           </div>
                         ) : (
                           companyProjects.map((p, i) => (
-                           <div key={p.id} className={cn("glass-card p-10 rounded-[40px] cursor-pointer group hover:scale-[1.02] transition-all relative", currentProjectIndex === i ? "border-blue-600 border-2" : "border-white/5")}>
+                           <div key={p.id} className={cn("glass-card rounded-[40px] cursor-pointer group hover:scale-[1.02] transition-all relative overflow-hidden", currentProjectIndex === i ? "border-blue-600 border-2" : "border-white/5")}>
                               <button
                                 onClick={async (e) => { e.stopPropagation(); if (p && p.id) { setCurrentProjectIndex(i); setActiveProjectId(p.id); const savedPhases = await loadProjectPhases(p.id); setPhases(savedPhases || []); const savedConfig = await loadProjectConfig(p.id); setBuildingConfig(savedConfig); if (savedPhases && savedPhases.length > 0) { setShowEmptyPhaseState(false); } else { setShowEmptyPhaseState(true); } if (editingProjectIndex !== null) setEditingProjectIndex(null); else setEditingProjectIndex(i); } }}
-                                className="absolute top-4 right-4 p-2 bg-blue-600/20 text-blue-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                                className="absolute top-4 right-4 z-10 p-2 bg-blue-600/80 backdrop-blur-sm text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all"
                               >
                                 <Pencil size={16} />
                               </button>
-                              <h3 className="text-2xl font-black text-white mb-2">{p.name}</h3>
-                              <p className="text-slate-500 text-xs mb-4">{p.location || 'Sem localização'}</p>
-                              <p className="text-slate-500 text-xs mb-8">{p.floors?.length || 0} pavimentos</p>
-                              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600" style={{ width: `${p.floors?.[0] ? getProgressPercentage(p.floors?.[0]?.services || []) : 0}%` }} />
+                              {p.coverPhoto && (
+                                <div className="relative h-40 w-full overflow-hidden">
+                                  <img
+                                    src={p.coverPhoto}
+                                    alt={p.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                                </div>
+                              )}
+                              <div className="p-10">
+                                <h3 className="text-2xl font-black text-white mb-2">{p.name}</h3>
+                                <p className="text-slate-500 text-xs mb-4">{p.location || 'Sem localização'}</p>
+                                <p className="text-slate-500 text-xs mb-8">{p.floors?.length || 0} pavimentos</p>
+                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                  <div className="h-full bg-blue-600" style={{ width: `${p.floors?.[0] ? getProgressPercentage(p.floors?.[0]?.services || []) : 0}%` }} />
+                                </div>
                               </div>
                            </div>
                           ))

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, CheckCircle, Circle, Trash2, User, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { newId } from '@/lib/utils';
 
 export interface Pendencia {
   id: string;
@@ -57,15 +58,31 @@ export default function PendenciasSection({
   }, [projectId]);
 
   const adicionarPendencia = async () => {
-    if (!novaPendencia.trim()) return;
+    if (!novaPendencia.trim()) {
+      alert('Descreva a pendência antes de adicionar.');
+      return;
+    }
+    if (!projectId) {
+      alert('Selecione um projeto antes de adicionar pendências.');
+      return;
+    }
     const { data, error } = await supabase.from('pendencias').insert({
+      id: newId(),
       project_id: projectId,
       conteudo: novaPendencia.trim(),
       responsavel: responsavel.trim() || currentUserName,
       nome_membro: currentUserName,
       concluida: false,
     }).select().maybeSingle();
-    if (error || !data) return;
+    if (error) {
+      console.error('Erro ao adicionar pendência:', error);
+      alert(`Erro ao adicionar pendência: ${error.message}`);
+      return;
+    }
+    if (!data) {
+      alert('Não foi possível salvar a pendência. Verifique se você tem permissão neste projeto.');
+      return;
+    }
     setPendencias(prev => [...prev, {
       id: data.id, projectId: data.project_id, conteudo: data.conteudo,
       responsavel: data.responsavel ?? '', nomeMembro: data.nome_membro ?? '',

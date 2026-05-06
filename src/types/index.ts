@@ -122,6 +122,7 @@ export interface Project {
   hasLeisure?: boolean;
   hasAtrium?: boolean;
   technicalAreas?: number;
+  coverPhoto?: string;
   floors?: Floor[];
   phases?: ConstructionPhase[];
 }

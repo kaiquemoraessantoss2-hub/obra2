@@ -69,6 +69,7 @@ export default function AddMemberModal({ isOpen, onClose, ownerId, companyId, on
       return;
     }
     setLoading(true);
+    console.log('[AddMemberModal] sending', { ownerId, companyId, email: email.trim().toLowerCase() });
     const result = await createMemberInSupabase(name.trim(), email.trim().toLowerCase(), password, ownerId, companyId);
     setLoading(false);
     if (!result.success) {

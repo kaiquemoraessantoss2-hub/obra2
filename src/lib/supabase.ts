@@ -17,25 +17,42 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Wipe stale tokens so they don't cause repeated "Invalid Refresh Token" errors on load
 if (typeof window !== 'undefined') {
-  const clearStaleAuth = () => {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-    keys.forEach(k => localStorage.removeItem(k));
+  const clearStaleAuth = async () => {
+    // signOut local: zera tanto o estado em memória do cliente quanto o localStorage,
+    // evitando que o auto-refresh continue tentando usar um refresh token quebrado.
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // ignore
+    }
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('sb-'))
+      .forEach(k => localStorage.removeItem(k));
+  };
+
+  // Silencia o "Invalid Refresh Token: Refresh Token Not Found" que o supabase-js
+  // loga quando o token persistido no browser foi revogado (usuário deletado, etc.).
+  // O erro é tratado internamente pelo cliente — só queremos sumir com o ruído visual.
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    const first = args[0];
+    const msg = typeof first === 'string'
+      ? first
+      : first && typeof first === 'object' && 'message' in first
+        ? String((first as { message: unknown }).message)
+        : '';
+    if (msg.includes('Invalid Refresh Token') || msg.includes('Refresh Token Not Found')) {
+      clearStaleAuth();
+      return;
+    }
+    originalConsoleError(...args);
   };
 
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') {
-      clearStaleAuth();
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('sb-'))
+        .forEach(k => localStorage.removeItem(k));
     }
-  });
-
-  // Sessão local pode estar com refresh_token inválido (usuário deletado, projeto
-  // resetado, token expirado há muito tempo). Detecta e limpa automaticamente para
-  // permitir um login novo sem precisar limpar manualmente o localStorage.
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error || !data.session) {
-      clearStaleAuth();
-    }
-  }).catch(() => {
-    clearStaleAuth();
   });
 }

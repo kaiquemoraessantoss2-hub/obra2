@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Download, Upload, Trash2, DollarSign, FileSpreadsheet, Filter, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { newId } from '@/lib/utils';
 
 interface Medicao {
   id: string;
@@ -92,10 +93,22 @@ export default function MedicaoObraSection({
   };
 
   const adicionarMedicao = async () => {
-    if (!form.disciplina || !form.descricao || !form.quantidade || !form.valorUnitario) return;
+    if (!form.disciplina || !form.descricao || !form.quantidade || !form.valorUnitario) {
+      alert('Preencha disciplina, descrição, quantidade e valor unitário.');
+      return;
+    }
+    if (!projectId) {
+      alert('Selecione um projeto antes de adicionar medições.');
+      return;
+    }
     const quantidade = parseFloat((form.quantidade || '').replace(',', '.'));
     const valorUnitario = parseFloat((form.valorUnitario || '').replace(',', '.'));
+    if (Number.isNaN(quantidade) || Number.isNaN(valorUnitario)) {
+      alert('Quantidade e valor unitário devem ser números válidos (use vírgula ou ponto).');
+      return;
+    }
     const { data, error } = await supabase.from('medicoes').insert({
+      id: newId(),
       project_id: projectId,
       disciplina: form.disciplina,
       contratante: form.contratante,
@@ -106,7 +119,15 @@ export default function MedicaoObraSection({
       valor_total: quantidade * valorUnitario,
       created_by: currentUserName,
     }).select().maybeSingle();
-    if (error || !data) return;
+    if (error) {
+      console.error('Erro ao adicionar medição:', error);
+      alert(`Erro ao adicionar medição: ${error.message}`);
+      return;
+    }
+    if (!data) {
+      alert('Não foi possível salvar a medição. Verifique se você tem permissão neste projeto.');
+      return;
+    }
     setMedicoes(prev => [...prev, {
       id: data.id, projectId: data.project_id, disciplina: data.disciplina,
       contratante: data.contratante ?? '', descricao: data.descricao,
@@ -161,6 +182,7 @@ export default function MedicaoObraSection({
       }
 
       const inserts = newMedicoes.map(m => ({
+        id: newId(),
         project_id: m.projectId,
         disciplina: m.disciplina,
         contratante: m.contratante,

@@ -129,9 +129,7 @@ export default function Auth({ onLogin, onMemberLogin }: AuthProps) {
   };
 
   if (showMemberLogin) {
-    return <LoginPage onLogin={(member: unknown) => { 
-      window.location.href = '?member=' + encodeURIComponent(JSON.stringify(member));
-    }} />;
+    return <LoginPage onBack={() => setShowMemberLogin(false)} />;
   }
 
   return (

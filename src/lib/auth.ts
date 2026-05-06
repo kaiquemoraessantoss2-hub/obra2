@@ -47,6 +47,7 @@ export interface Project {
   hasLeisure?: boolean;
   hasAtrium?: boolean;
   technicalAreas?: number;
+  coverPhoto?: string;
   floors?: any[];
   phases?: any[];
 }
@@ -389,6 +390,7 @@ export async function loadProjects(companyId?: string): Promise<Project[]> {
     hasLeisure: p.has_leisure,
     hasAtrium: p.has_atrium,
     technicalAreas: p.technical_areas,
+    coverPhoto: p.cover_photo,
     phases: (p.project_phases || []).map((ph: any) => ({
       ...ph,
       startDate: ph.start_date,
@@ -416,7 +418,7 @@ export async function saveProject(project: Project): Promise<void> {
   
   if (!id) return;
 
-  const record = { 
+  const record = {
     id,
     name: rest.name,
     location: rest.location,
@@ -425,6 +427,7 @@ export async function saveProject(project: Project): Promise<void> {
     has_leisure: rest.hasLeisure,
     has_atrium: rest.hasAtrium,
     technical_areas: rest.technicalAreas,
+    cover_photo: rest.coverPhoto,
     company_id: company_id_final,
     updated_at: new Date().toISOString()
   };

@@ -29,6 +29,17 @@ export default function ConstructionCalendar({ companyId }: Props) {
   const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
+  const today = new Date();
+  const isToday = (day: number) =>
+    day === today.getDate() &&
+    currentDate.getMonth() === today.getMonth() &&
+    currentDate.getFullYear() === today.getFullYear();
+
+  const openAddEventForDay = (day: number) => {
+    setNewEvent({ title: '', type: 'TASK', day, time: '08:00' });
+    setIsAddingEvent(true);
+  };
+
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
@@ -59,14 +70,26 @@ export default function ConstructionCalendar({ companyId }: Props) {
           ))}
           {calendarDays.map((day, idx) => {
              const dayEvents = day ? events.filter(e => e.day === day) : [];
+             const hasEvents = dayEvents.length > 0;
              return (
-                <div key={idx} className={cn(
-                   "bg-[var(--background)] min-h-[120px] p-4 border border-white/2 transition-all",
-                   day ? "hover:bg-white/[0.02] cursor-pointer" : "opacity-20"
-                )}>
+                <div
+                   key={idx}
+                   onClick={day ? () => openAddEventForDay(day) : undefined}
+                   className={cn(
+                      "bg-[var(--background)] min-h-[120px] p-4 border border-white/2 transition-all",
+                      day ? "hover:bg-white/[0.02] cursor-pointer" : "opacity-20"
+                   )}
+                >
                    {day && (
                       <div className="space-y-3">
-                         <span className={cn("text-xs font-black", day === 14 ? "w-6 h-6 flex items-center justify-center bg-blue-600 rounded-lg text-white" : "text-slate-500")}>{day}</span>
+                         <span className={cn(
+                            "text-xs font-black",
+                            isToday(day)
+                               ? "w-6 h-6 flex items-center justify-center bg-blue-600 rounded-lg text-white"
+                               : hasEvents
+                                  ? "text-blue-400"
+                                  : "text-slate-500"
+                         )}>{day}</span>
                          <div className="space-y-1">
                             {dayEvents.map((e, i) => (
                                <div key={i} className={cn(
