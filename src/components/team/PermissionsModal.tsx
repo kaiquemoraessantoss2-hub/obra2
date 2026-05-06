@@ -71,16 +71,19 @@ export default function PermissionsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative glass-card p-8 rounded-[40px] max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-black text-white">
+      <div className="relative glass-card rounded-[32px] max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header fixo */}
+        <div className="flex justify-between items-center p-6 border-b border-white/10 shrink-0">
+          <h3 className="text-lg font-black text-white">
             Permissões — {member.name}
           </h3>
           <button onClick={onClose} className="text-slate-500 hover:text-white">
-            <X size={24} />
+            <X size={22} />
           </button>
         </div>
 
+        {/* Conteúdo rolável */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
         <table className="w-full">
           <thead>
             <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
@@ -120,7 +123,7 @@ export default function PermissionsModal({
           </tbody>
         </table>
 
-        <div className="mt-8 pt-6 border-t border-white/10">
+        <div className="mt-6 pt-6 border-t border-white/10">
           <h4 className="text-sm font-black text-white mb-4">Acesso às Obras</h4>
           <div className="space-y-2">
             <label className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-xl cursor-pointer hover:bg-white/5">
@@ -169,7 +172,9 @@ export default function PermissionsModal({
           )}
         </div>
 
-        <div className="flex gap-3 mt-8">
+        </div>
+        {/* Rodapé fixo */}
+        <div className="flex gap-3 p-6 border-t border-white/10 shrink-0">
           <button
             onClick={onClose}
             className="flex-1 py-3 text-slate-500 hover:text-white"
