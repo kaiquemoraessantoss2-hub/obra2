@@ -71,7 +71,7 @@ export default function PermissionsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative glass-card p-8 rounded-[40px] max-w-lg w-full">
+      <div className="relative glass-card p-8 rounded-[40px] max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-black text-white">
             Permissões — {member.name}
