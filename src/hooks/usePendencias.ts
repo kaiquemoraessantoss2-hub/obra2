@@ -79,11 +79,16 @@ export function usePendencias(projectId: string, currentUserName: string) {
     refetch();
   }, [refetch]);
 
-  // Realtime: re-fetch quando muda algo na tabela pra esse project
+  // Realtime: re-fetch quando muda algo na tabela pra esse project.
+  // Nome único por mount evita colisão com cache de channels do supabase-js
+  // quando React 19 StrictMode faz double-mount em dev.
   useEffect(() => {
     if (!projectId) return;
+    const channelName = `pendencias:${projectId}:${
+      typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+    }`;
     const channel = supabase
-      .channel(`pendencias:${projectId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pendencias', filter: `project_id=eq.${projectId}` },
