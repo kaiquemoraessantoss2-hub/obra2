@@ -1,6 +1,8 @@
 'use client';
 
+import { CSSProperties } from 'react';
 import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Trash2, User, Clock } from 'lucide-react';
 import { Pendencia } from '@/hooks/usePendencias';
 
@@ -11,15 +13,19 @@ interface PendenciaCardProps {
 }
 
 export default function PendenciaCard({ pendencia, canEdit, onRemove }: PendenciaCardProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: pendencia.id,
     data: { pendencia },
   });
 
-  // Card original fica parado durante o drag; o DragOverlay no parent é
-  // que segue o cursor. Aplicar transform aqui causaria movimento duplicado.
-  const style = {
-    opacity: isDragging ? 0 : 1,
+  // Padrão simples: transform segue o cursor 1:1 e o card original é o
+  // que se desloca. zIndex eleva o card durante o drag para ficar acima
+  // dos vizinhos. Não usamos DragOverlay para evitar offset duplicado.
+  const style: CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.85 : 1,
+    zIndex: isDragging ? 50 : undefined,
+    position: isDragging ? 'relative' : undefined,
   };
 
   // Indicador de tempo na coluna: badge amarelo se >7 dias desde criação

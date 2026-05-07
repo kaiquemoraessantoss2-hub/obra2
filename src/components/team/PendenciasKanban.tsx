@@ -4,8 +4,6 @@ import { useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
@@ -13,7 +11,6 @@ import {
 import { Plus } from 'lucide-react';
 import { usePendencias, PendenciaStatus, Pendencia } from '@/hooks/usePendencias';
 import PendenciaColumn from './PendenciaColumn';
-import PendenciaCard from './PendenciaCard';
 
 const COLUMNS: Array<{ status: PendenciaStatus; title: string; accentClass: string }> = [
   { status: 'a_fazer', title: 'A fazer', accentClass: 'border-slate-500' },
@@ -34,7 +31,6 @@ export default function PendenciasKanban({
   canEdit,
 }: PendenciasKanbanProps) {
   const { pendencias, adicionar, moverStatus, remover } = usePendencias(projectId, currentUserName);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [createInColumn, setCreateInColumn] = useState<PendenciaStatus | null>(null);
   const [novoConteudo, setNovoConteudo] = useState('');
   const [novoResponsavel, setNovoResponsavel] = useState('');
@@ -42,14 +38,7 @@ export default function PendenciasKanban({
   // PointerSensor com distância de 5px pra não confundir click no botão de remover com drag
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const activePendencia = activeId ? pendencias.find(p => p.id === activeId) ?? null : null;
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
-  };
-
   const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveId(null);
     if (!event.over) return;
     const id = String(event.active.id);
     const newStatus = event.over.id as PendenciaStatus;
@@ -80,7 +69,7 @@ export default function PendenciasKanban({
 
   return (
     <>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4">
           {COLUMNS.map(col => (
             <PendenciaColumn
@@ -95,11 +84,6 @@ export default function PendenciasKanban({
             />
           ))}
         </div>
-        <DragOverlay>
-          {activePendencia ? (
-            <PendenciaCard pendencia={activePendencia} canEdit={false} onRemove={() => {}} />
-          ) : null}
-        </DragOverlay>
       </DndContext>
 
       {createInColumn && (
