@@ -80,17 +80,40 @@ export async function saveEmpresaBranding(
   return { ok: true };
 }
 
-/** Faz upload do logo no bucket empresa-logos. Retorna URL pública. */
+const MIME_TO_EXT: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+
+/** Faz upload do logo no bucket empresa-logos. Retorna URL pública.
+ *  Caller deve persistir a URL via saveEmpresaBranding. */
 export async function uploadLogo(
   companyId: string,
   file: File,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!companyId) return { ok: false, error: 'company_id ausente' };
   if (file.size > 2 * 1024 * 1024) return { ok: false, error: 'Logo deve ter no máximo 2 MB.' };
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-  if (!['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+
+  // Valida pelo MIME do file (browser-detected), não pela extensão do nome
+  const ext = MIME_TO_EXT[file.type];
+  if (!ext) {
     return { ok: false, error: 'Formato suportado: PNG, JPG, WEBP.' };
   }
+
+  // Remove logos anteriores com extensão diferente para evitar arquivos órfãos
+  const { data: existing } = await supabase.storage
+    .from('empresa-logos')
+    .list(companyId, { limit: 100 });
+  if (existing && existing.length > 0) {
+    const stale = existing
+      .filter(obj => obj.name.startsWith('logo.') && obj.name !== `logo.${ext}`)
+      .map(obj => `${companyId}/${obj.name}`);
+    if (stale.length > 0) {
+      await supabase.storage.from('empresa-logos').remove(stale);
+    }
+  }
+
   const path = `${companyId}/logo.${ext}`;
   const { error: uploadError } = await supabase.storage
     .from('empresa-logos')
