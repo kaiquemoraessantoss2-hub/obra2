@@ -34,6 +34,12 @@ CREATE POLICY "empresa_logos_update_own_company" ON storage.objects
     AND (storage.foldername(name))[1] = (
       SELECT company_id::text FROM profiles WHERE id = auth.uid()
     )
+  )
+  WITH CHECK (
+    bucket_id = 'empresa-logos'
+    AND (storage.foldername(name))[1] = (
+      SELECT company_id::text FROM profiles WHERE id = auth.uid()
+    )
   );
 
 DROP POLICY IF EXISTS "empresa_logos_delete_own_company" ON storage.objects;
