@@ -38,7 +38,8 @@ import {
   Camera,
   Key,
   X,
-  Pencil
+  Pencil,
+  Menu
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -82,6 +83,7 @@ export default function GlobalApplication() {
   const [currentMember, setCurrentMember] = useState<any>(null);
   const [showMemberLogin, setShowMemberLogin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
@@ -752,9 +754,15 @@ if (currentMember) {
 
     return (
       <div className="min-h-screen flex bg-[var(--background)]">
-        <aside className="hidden lg:flex w-[280px] flex-col p-8 space-y-10 border-r border-white/5 z-10 sticky top-0 h-screen">
-          <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white">Building2 ObraFlow</div>
-          <nav className="flex-1 space-y-2">
+        {mobileMenuOpen && (
+          <div onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" />
+        )}
+        <aside className={`fixed lg:sticky inset-y-0 left-0 lg:top-0 lg:h-screen w-[280px] flex flex-col p-8 space-y-10 border-r border-white/5 bg-[var(--background)] z-50 lg:z-10 transform transition-transform duration-300 lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex items-center justify-between px-2 font-black text-xl italic tracking-tighter text-white">
+            <span className="flex items-center gap-3"><Building2 size={24}/> ObraFlow</span>
+            <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white"><X size={20}/></button>
+          </div>
+          <nav className="flex-1 space-y-2" onClick={() => setMobileMenuOpen(false)}>
             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Menu</p>
             {hasAccess('DASHBOARD') && (
               <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'dashboard' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
@@ -794,7 +802,13 @@ if (currentMember) {
           </nav>
           <button onClick={() => { setCurrentMember(null); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
         </aside>
-        <main className="flex-1 overflow-y-auto pb-20 p-10">
+        <main className="flex-1 overflow-y-auto pb-20 w-full">
+          <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-4 bg-[var(--background)]/80 backdrop-blur-md border-b border-white/5">
+            <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-white"><Menu size={24} /></button>
+            <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18}/> ObraFlow</div>
+            <div className="w-10" />
+          </header>
+          <div className="p-4 md:p-10">
           {activeModule === 'dashboard' && hasAccess('DASHBOARD') && (
             <ModuleGuard module="DASHBOARD" memberPermissions={perms} access={canEdit('DASHBOARD') ? 'EDITAR' : 'VER'}>
               <div className="space-y-6">
@@ -1031,6 +1045,7 @@ if (currentMember) {
               <p className="text-sm text-slate-500 mb-6">Selecione uma seção no menu.</p>
             </div>
           )}
+          </div>
         </main>
       </div>
     );
@@ -1101,9 +1116,15 @@ if (currentMember) {
         </div>
       )}
 
-      <aside className="hidden lg:flex w-[280px] flex-col p-8 space-y-10 border-r border-white/5 z-10 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 px-2 font-black text-xl italic tracking-tighter text-white"><Building2 size={24}/> ObraFlow</div>
-        <nav className="flex-1 space-y-8 no-scrollbar overflow-y-auto">
+      {mobileMenuOpen && (
+        <div onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" />
+      )}
+      <aside className={`fixed lg:sticky inset-y-0 left-0 lg:top-0 lg:h-screen w-[280px] flex flex-col p-8 space-y-10 border-r border-white/5 bg-[var(--background)] z-50 lg:z-10 transform transition-transform duration-300 lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between px-2 font-black text-xl italic tracking-tighter text-white">
+          <span className="flex items-center gap-3"><Building2 size={24}/> ObraFlow</span>
+          <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white"><X size={20}/></button>
+        </div>
+        <nav className="flex-1 space-y-8 no-scrollbar overflow-y-auto" onClick={() => setMobileMenuOpen(false)}>
           {currentUser.role === 'SUPERADMIN' ? (
             <div className="space-y-2">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Administração SaaS</p>
@@ -1137,13 +1158,15 @@ if (currentMember) {
       </aside>
 
 
-      <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
-        <header className="sticky top-0 z-20 flex items-center justify-between px-10 py-6 bg-[var(--background)]/80 backdrop-blur-md">
-          <div className="flex-1 max-w-[500px] relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} /><input className="search-bar w-full" placeholder="Buscar no sistema..." /></div>
-          <div className="flex items-center gap-6"><Bell className="text-slate-500" size={20}/><div className="flex items-center gap-3 pl-6 border-l border-white/5 text-right"><div><p className="text-sm font-bold text-white">{currentUser.name}</p><p className="text-[9px] text-slate-500 font-black uppercase">{currentUser.role}</p></div><div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-black">{currentUser.name[0]}</div></div></div>
+      <main className="flex-1 overflow-y-auto no-scrollbar pb-20 w-full">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 md:px-10 py-4 md:py-6 bg-[var(--background)]/80 backdrop-blur-md">
+          <button onClick={() => setMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2 text-white shrink-0"><Menu size={24} /></button>
+          <div className="flex-1 max-w-[500px] relative hidden md:block"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} /><input className="search-bar w-full" placeholder="Buscar no sistema..." /></div>
+          <div className="flex-1 md:hidden flex items-center justify-center gap-2 font-black text-base italic text-white"><Building2 size={18}/> ObraFlow</div>
+          <div className="flex items-center gap-3 md:gap-6 shrink-0"><Bell className="text-slate-500" size={20}/><div className="flex items-center gap-3 md:pl-6 md:border-l border-white/5 text-right"><div className="hidden sm:block"><p className="text-sm font-bold text-white">{currentUser.name}</p><p className="text-[9px] text-slate-500 font-black uppercase">{currentUser.role}</p></div><div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-black">{currentUser.name[0]}</div></div></div>
         </header>
 
-        <div className="px-10 mt-6 space-y-10">
+        <div className="px-4 md:px-10 mt-6 space-y-10">
           {currentUser.role === 'SUPERADMIN' && activeTab === 'admin_dashboard' && (
              <AdminPanel 
                 companies={companies} 
