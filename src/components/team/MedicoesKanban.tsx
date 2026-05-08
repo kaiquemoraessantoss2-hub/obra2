@@ -96,6 +96,11 @@ export default function MedicoesKanban({
   const medicoesByStatus = (status: MedicaoStatus): Medicao[] =>
     medicoes.filter(m => m.status === status);
 
+  // Disciplinas vistas até hoje (lista padrão + qualquer extra que o usuário já lançou)
+  const disciplinasUsadas = [
+    ...new Set([...DISCIPLINAS, ...medicoes.map(m => m.disciplina).filter(Boolean)]),
+  ];
+
   return (
     <>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -125,16 +130,14 @@ export default function MedicoesKanban({
               </h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <select
+              <input
+                type="text"
+                list="kanban-disciplinas-suggestions"
                 value={form.disciplina}
                 onChange={(e) => setForm({ ...form, disciplina: e.target.value })}
+                placeholder="Disciplina (ex: Elétrica, Forro PVC, etc)"
                 className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-              >
-                <option value="">Disciplina</option>
-                {DISCIPLINAS.map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+              />
               <input
                 type="text"
                 value={form.contratante}
@@ -143,6 +146,11 @@ export default function MedicoesKanban({
                 className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
               />
             </div>
+            <datalist id="kanban-disciplinas-suggestions">
+              {disciplinasUsadas.map(d => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
             <input
               type="text"
               value={form.descricao}

@@ -261,7 +261,9 @@ export default function MedicaoObraSection({
   });
 
   const totalGeral = filteredMedicoes.reduce((acc, m) => acc + m.valorTotal, 0);
-  const contratantes = [...new Set(medicoes.map(m => m.contratante))];
+  const contratantes = [...new Set(medicoes.map(m => m.contratante).filter(Boolean))];
+  // Disciplinas vistas até hoje (lista DISCIPLINAS + qualquer extra que o usuário já lançou)
+  const disciplinasUsadas = [...new Set([...DISCIPLINAS, ...medicoes.map(m => m.disciplina).filter(Boolean)])];
 
   return (
     <div className="glass-card p-8 rounded-[40px] space-y-6">
@@ -345,9 +347,9 @@ export default function MedicaoObraSection({
                 onChange={(e) => setFilterDisciplina(e.target.value)}
                 className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
               >
-                <option value="">Todas disciplinas</option>
-                {DISCIPLINAS.map(d => (
-                  <option key={d} value={d}>{d}</option>
+                <option value="" className="bg-slate-900 text-white">Todas disciplinas</option>
+                {disciplinasUsadas.map(d => (
+                  <option key={d} value={d} className="bg-slate-900 text-white">{d}</option>
                 ))}
               </select>
               <select
@@ -355,9 +357,9 @@ export default function MedicaoObraSection({
                 onChange={(e) => setFilterContratante(e.target.value)}
                 className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
               >
-                <option value="">Todos contratantes</option>
+                <option value="" className="bg-slate-900 text-white">Todos contratantes</option>
                 {contratantes.map(c => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c} className="bg-slate-900 text-white">{c}</option>
                 ))}
               </select>
               <div className="flex gap-2 ml-auto">
@@ -382,16 +384,14 @@ export default function MedicaoObraSection({
           {showAdd && (
             <div className="p-4 bg-white/5 rounded-xl space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <select
+                <input
+                  type="text"
+                  list="disciplinas-suggestions"
                   value={form.disciplina}
                   onChange={(e) => setForm({ ...form, disciplina: e.target.value })}
+                  placeholder="Disciplina (ex: Elétrica, Forro PVC, etc)"
                   className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-                >
-                  <option value="">Disciplina</option>
-                  {DISCIPLINAS.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+                />
                 <input
                   type="text"
                   value={form.contratante}
@@ -400,6 +400,11 @@ export default function MedicaoObraSection({
                   className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
                 />
               </div>
+              <datalist id="disciplinas-suggestions">
+                {disciplinasUsadas.map(d => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
               <input
                 type="text"
                 value={form.descricao}
