@@ -1,9 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Download, Upload, Trash2, DollarSign, FileSpreadsheet, Filter, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import {
+  Plus, Download, Upload, Trash2, Filter, List, LayoutGrid,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { newId } from '@/lib/utils';
+
+// Lazy import do Kanban
+const MedicoesKanban = dynamic(() => import('./MedicoesKanban'), {
+  ssr: false,
+  loading: () => <div className="text-center py-8 text-slate-500">Carregando Kanban...</div>,
+});
+
+const VIEW_STORAGE_KEY = 'medicoes_view_mode';
+type ViewMode = 'list' | 'kanban';
 
 interface Medicao {
   id: string;
@@ -55,19 +67,22 @@ interface MedicaoFormData {
 interface MedicaoObraSectionProps {
   projectId: string;
   currentUserName: string;
+  canEdit?: boolean;
 }
 
-export default function MedicaoObraSection({ 
-  projectId, 
-  currentUserName 
+export default function MedicaoObraSection({
+  projectId,
+  currentUserName,
+  canEdit = true,
 }: MedicaoObraSectionProps) {
   const [medicoes, setMedicoes] = useState<Medicao[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterDisciplina, setFilterDisciplina] = useState('');
   const [filterContratante, setFilterContratante] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [form, setForm] = useState<MedicaoFormData>({
     disciplina: '',
     contratante: '',
@@ -80,6 +95,19 @@ export default function MedicaoObraSection({
   useEffect(() => {
     fetchMedicoes(projectId).then(setMedicoes);
   }, [projectId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    if (saved === 'list' || saved === 'kanban') setViewMode(saved);
+  }, []);
+
+  const switchView = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    }
+  };
 
   const resetForm = () => {
     setForm({
@@ -155,7 +183,6 @@ export default function MedicaoObraSection({
       const lines = text.split('\n');
       const newMedicoes: Medicao[] = [];
 
-      // Pular header (linha 0)
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -210,14 +237,14 @@ export default function MedicaoObraSection({
 
     let csv = 'Disciplina,Contratante,Descrição,Quantidade,Unidade,Valor Unitário,Valor Total\n';
     let totalGeral = 0;
-    
+
     filtered.forEach(m => {
       csv += `${m.disciplina},${m.contratante},${m.descricao},${m.quantidade},${m.unidade},${m.valorUnitario.toFixed(2)},${m.valorTotal.toFixed(2)}\n`;
       totalGeral += m.valorTotal;
     });
-    
+
     csv += `\n,,,,,,TOTAL,${totalGeral.toFixed(2)}`;
-    
+
     const disciplinaLabel = disciplina ? `_${disciplina}` : '_todos';
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
@@ -241,178 +268,218 @@ export default function MedicaoObraSection({
       <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-black text-white">Medições da Obra</h2>
-          <p className="text-sm text-slate-500">{medicoes.length} item(ns) • Total: R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          <p className="text-sm text-slate-500">
+            {medicoes.length} item(ns) • Total: R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="file"
-            accept=".csv"
-            ref={fileInputRef}
-            onChange={handleCSVUpload}
-            className="hidden"
-            id="csv-upload"
-          />
-          <label
-            htmlFor="csv-upload"
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-500 hover:text-white rounded-xl cursor-pointer"
-          >
-            <Upload size={18} /> Importar
-          </label>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl ${showFilters ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500 hover:text-white'}`}
-          >
-            <Filter size={18} /> Filtrar
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl"
-          >
-            <Plus size={18} /> Novo
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1">
+            <button
+              onClick={() => switchView('list')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'
+              }`}
+              aria-pressed={viewMode === 'list'}
+            >
+              <List size={14} /> Lista
+            </button>
+            <button
+              onClick={() => switchView('kanban')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'
+              }`}
+              aria-pressed={viewMode === 'kanban'}
+            >
+              <LayoutGrid size={14} /> Kanban
+            </button>
+          </div>
+          {viewMode === 'list' && (
+            <>
+              <input
+                type="file"
+                accept=".csv"
+                ref={fileInputRef}
+                onChange={handleCSVUpload}
+                className="hidden"
+                id="csv-upload"
+              />
+              <label
+                htmlFor="csv-upload"
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-500 hover:text-white rounded-xl cursor-pointer"
+              >
+                <Upload size={18} /> Importar
+              </label>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
+                  showFilters ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500 hover:text-white'
+                }`}
+              >
+                <Filter size={18} /> Filtrar
+              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl"
+                >
+                  <Plus size={18} /> Novo
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {showFilters && (
-        <div className="flex gap-4 p-4 bg-white/5 rounded-xl">
-          <select
-            value={filterDisciplina}
-            onChange={(e) => setFilterDisciplina(e.target.value)}
-            className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-          >
-            <option value="">Todas disciplinas</option>
-            {DISCIPLINAS.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-          <select
-            value={filterContratante}
-            onChange={(e) => setFilterContratante(e.target.value)}
-            className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-          >
-            <option value="">Todos contratantes</option>
-            {contratantes.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <div className="flex gap-2 ml-auto">
-            <button
-              onClick={() => downloadRelatorio()}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-500 hover:text-white rounded-xl"
-            >
-              <Download size={18} /> Todos
-            </button>
-            {filterDisciplina && (
-              <button
-                onClick={() => downloadRelatorio(filterDisciplina)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl"
-              >
-                <Download size={18} /> {filterDisciplina}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showAdd && (
-        <div className="p-4 bg-white/5 rounded-xl space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <select
-              value={form.disciplina}
-              onChange={(e) => setForm({ ...form, disciplina: e.target.value })}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-            >
-              <option value="">Disciplina</option>
-              {DISCIPLINAS.map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={form.contratante}
-              onChange={(e) => setForm({ ...form, contratante: e.target.value })}
-              placeholder="Contratante"
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-            />
-          </div>
-          <input
-            type="text"
-            value={form.descricao}
-            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-            placeholder="Descrição do serviço"
-            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-          />
-          <div className="grid grid-cols-3 gap-4">
-            <input
-              type="text"
-              value={form.quantidade}
-              onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
-              placeholder="Quantidade"
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-            />
-            <input
-              type="text"
-              value={form.unidade}
-              onChange={(e) => setForm({ ...form, unidade: e.target.value })}
-              placeholder="Unidade (m, m², etc)"
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-            />
-            <input
-              type="text"
-              value={form.valorUnitario}
-              onChange={(e) => setForm({ ...form, valorUnitario: e.target.value })}
-              placeholder="Valor Unitário (R$)"
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => { setShowAdd(false); resetForm(); }} className="flex-1 py-2 text-slate-500 hover:text-white">
-              Cancelar
-            </button>
-            <button onClick={adicionarMedicao} className="flex-1 py-2 bg-blue-600 text-white rounded-xl">
-              Adicionar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {filteredMedicoes.length === 0 ? (
-        <div className="text-center py-8 text-slate-500">
-          Nenhuma medição ainda. Clique em &quot;Novo&quot; para adicionar.
-        </div>
+      {viewMode === 'kanban' ? (
+        <MedicoesKanban
+          projectId={projectId}
+          currentUserName={currentUserName}
+          canEdit={canEdit}
+        />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-xs text-slate-500 uppercase border-b border-white/10">
-                <th className="pb-3">Disciplina</th>
-                <th className="pb-3">Contratante</th>
-                <th className="pb-3">Descrição</th>
-                <th className="pb-3 text-right">Qtd</th>
-                <th className="pb-3 text-right">Valor Unit.</th>
-                <th className="pb-3 text-right">Total</th>
-                <th className="pb-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMedicoes.map(m => (
-                <tr key={m.id} className="border-b border-white/5">
-                  <td className="py-3 text-white">{m.disciplina}</td>
-                  <td className="py-3 text-slate-400">{m.contratante}</td>
-                  <td className="py-3 text-slate-400">{m.descricao}</td>
-                  <td className="py-3 text-right text-white">{m.quantidade} {m.unidade}</td>
-                  <td className="py-3 text-right text-slate-400">R$ {m.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className="py-3 text-right text-green-400 font-bold">R$ {m.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className="py-3 text-right">
-                    <button onClick={() => removerMedicao(m.id)} className="text-slate-500 hover:text-rose-500">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {showFilters && (
+            <div className="flex gap-4 p-4 bg-white/5 rounded-xl flex-wrap">
+              <select
+                value={filterDisciplina}
+                onChange={(e) => setFilterDisciplina(e.target.value)}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+              >
+                <option value="">Todas disciplinas</option>
+                {DISCIPLINAS.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <select
+                value={filterContratante}
+                onChange={(e) => setFilterContratante(e.target.value)}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+              >
+                <option value="">Todos contratantes</option>
+                {contratantes.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={() => downloadRelatorio()}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-500 hover:text-white rounded-xl"
+                >
+                  <Download size={18} /> Todos
+                </button>
+                {filterDisciplina && (
+                  <button
+                    onClick={() => downloadRelatorio(filterDisciplina)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl"
+                  >
+                    <Download size={18} /> {filterDisciplina}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showAdd && (
+            <div className="p-4 bg-white/5 rounded-xl space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <select
+                  value={form.disciplina}
+                  onChange={(e) => setForm({ ...form, disciplina: e.target.value })}
+                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+                >
+                  <option value="">Disciplina</option>
+                  {DISCIPLINAS.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={form.contratante}
+                  onChange={(e) => setForm({ ...form, contratante: e.target.value })}
+                  placeholder="Contratante"
+                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+                />
+              </div>
+              <input
+                type="text"
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                placeholder="Descrição do serviço"
+                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+              />
+              <div className="grid grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  value={form.quantidade}
+                  onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                  placeholder="Quantidade"
+                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+                />
+                <input
+                  type="text"
+                  value={form.unidade}
+                  onChange={(e) => setForm({ ...form, unidade: e.target.value })}
+                  placeholder="Unidade (m, m², etc)"
+                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+                />
+                <input
+                  type="text"
+                  value={form.valorUnitario}
+                  onChange={(e) => setForm({ ...form, valorUnitario: e.target.value })}
+                  placeholder="Valor Unitário (R$)"
+                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setShowAdd(false); resetForm(); }} className="flex-1 py-2 text-slate-500 hover:text-white">
+                  Cancelar
+                </button>
+                <button onClick={adicionarMedicao} className="flex-1 py-2 bg-blue-600 text-white rounded-xl">
+                  Adicionar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {filteredMedicoes.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              Nenhuma medição ainda. Clique em &quot;Novo&quot; para adicionar.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-xs text-slate-500 uppercase border-b border-white/10">
+                    <th className="pb-3">Disciplina</th>
+                    <th className="pb-3">Contratante</th>
+                    <th className="pb-3">Descrição</th>
+                    <th className="pb-3 text-right">Qtd</th>
+                    <th className="pb-3 text-right">Valor Unit.</th>
+                    <th className="pb-3 text-right">Total</th>
+                    <th className="pb-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMedicoes.map(m => (
+                    <tr key={m.id} className="border-b border-white/5">
+                      <td className="py-3 text-white">{m.disciplina}</td>
+                      <td className="py-3 text-slate-400">{m.contratante}</td>
+                      <td className="py-3 text-slate-400">{m.descricao}</td>
+                      <td className="py-3 text-right text-white">{m.quantidade} {m.unidade}</td>
+                      <td className="py-3 text-right text-slate-400">R$ {m.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3 text-right text-green-400 font-bold">R$ {m.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3 text-right">
+                        <button onClick={() => removerMedicao(m.id)} className="text-slate-500 hover:text-rose-500">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
