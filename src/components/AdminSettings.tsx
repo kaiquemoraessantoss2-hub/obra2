@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Users, Shield, Settings, Key, Plus, X, Check, Eye, EyeOff, AlertCircle, Trash2, Edit, Save, Database } from 'lucide-react';
+import { User, Users, Shield, Settings, Key, Plus, X, Check, Eye, EyeOff, AlertCircle, Trash2, Edit, Save, Database, Building2 } from 'lucide-react';
 import { User as UserType } from '@/types';
 import { cn } from '@/lib/utils';
 import { loadUserProfilesFromSupabase } from '@/lib/auth';
 import MigrationTool from './MigrationTool';
+import EmpresaBrandingForm from './EmpresaBrandingForm';
 
 interface Props {
   currentUser: UserType;
@@ -13,7 +14,7 @@ interface Props {
 }
 
 export default function AdminSettings({ currentUser, onUpdateUser }: Props) {
-  const [activeSection, setActiveSection] = useState<'profile' | 'users' | 'settings'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'users' | 'empresa' | 'settings'>('profile');
   const [users, setUsers] = useState<UserType[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
@@ -67,6 +68,16 @@ export default function AdminSettings({ currentUser, onUpdateUser }: Props) {
             Usuários
           </button>
           <button
+            onClick={() => setActiveSection('empresa')}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2",
+              activeSection === 'empresa' ? "bg-blue-600 text-white" : "text-slate-500 hover:text-white"
+            )}
+          >
+            <Building2 size={14} />
+            Empresa
+          </button>
+          <button
             onClick={() => setActiveSection('settings')}
             className={cn(
               "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2",
@@ -95,6 +106,18 @@ export default function AdminSettings({ currentUser, onUpdateUser }: Props) {
             }}
           />
         )}
+
+      {activeSection === 'empresa' && (
+        <div className="glass-card p-8 rounded-[40px] border border-white/5">
+          {currentUser.companyId ? (
+            <EmpresaBrandingForm companyId={currentUser.companyId} />
+          ) : (
+            <p className="text-sm text-slate-500">
+              Esta conta não está vinculada a uma empresa. Branding indisponível.
+            </p>
+          )}
+        </div>
+      )}
 
       {activeSection === 'settings' && (
         <div className="space-y-6">
