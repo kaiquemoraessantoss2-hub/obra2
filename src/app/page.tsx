@@ -96,6 +96,8 @@ export default function GlobalApplication() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileInputRef = useRef<HTMLInputElement>(null);
+  const currentMemberRef = useRef<any>(null);
+  currentMemberRef.current = currentMember;
 
   // States - carregados do Supabase
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -242,8 +244,11 @@ export default function GlobalApplication() {
 
   const loadInitialData = useCallback(async () => {
     if (!currentUser) {
-      setAllProjects([]);
-      setCompanies([]);
+      // Não limpar se membro ativo — ele tem loader próprio
+      if (!currentMemberRef.current) {
+        setAllProjects([]);
+        setCompanies([]);
+      }
       return;
     }
 
@@ -328,7 +333,7 @@ export default function GlobalApplication() {
   }, [currentUser?.companyId, loadInitialData]);
 
   const selectProject = async (projectId: string) => {
-    if (activeProjectId && activeProjectId !== projectId) {
+    if (activeProjectId && activeProjectId !== projectId && !currentMember) {
       if (phases.length > 0) {
         await saveProjectPhases(activeProjectId, phases);
       }
@@ -423,6 +428,49 @@ export default function GlobalApplication() {
       loadTeamByCompany(currentViewCompanyId).then(setTeam);
     }
   }, [currentViewCompanyId, isInitialized]);
+
+  // Carrega projetos da empresa quando um membro faz login
+  useEffect(() => {
+    if (!currentMember?.companyId) return;
+
+    const loadMemberProjects = async () => {
+      const freshProjects = await loadProjects(currentMember.companyId);
+      const typedProjects: Project[] = (freshProjects as any[]).map((p: any) => ({
+        id: p.id || newId(),
+        companyId: p.company_id || p.companyId || '',
+        name: p.name || 'Novo Projeto',
+        location: p.location || '',
+        totalFloors: p.totalFloors ?? p.total_floors ?? 1,
+        basements: p.basements ?? 0,
+        hasLeisure: p.hasLeisure ?? p.has_leisure ?? false,
+        hasAtrium: p.hasAtrium ?? p.has_atrium ?? false,
+        technicalAreas: p.technicalAreas ?? p.technical_areas ?? 0,
+        floors: p.floors || [],
+        phases: p.phases || [],
+      }));
+      setAllProjects(typedProjects);
+      setCurrentViewCompanyId(currentMember.companyId);
+      setIsInitialized(true);
+
+      // Seleciona automaticamente a primeira obra permitida
+      const allowed = (Array.isArray(currentMember.projectIds) && currentMember.projectIds.length > 0)
+        ? typedProjects.filter(p => (currentMember.projectIds as string[]).includes(p.id))
+        : typedProjects;
+
+      if (allowed.length > 0) {
+        const firstProject = allowed[0];
+        setActiveProjectId(firstProject.id);
+        const projectIdx = typedProjects.findIndex(p => p.id === firstProject.id);
+        setCurrentProjectIndex(projectIdx >= 0 ? projectIdx : 0);
+        const savedPhases = await loadProjectPhases(firstProject.id);
+        setPhases(savedPhases || []);
+        const savedConfig = await loadProjectConfig(firstProject.id);
+        setBuildingConfig(savedConfig);
+      }
+    };
+
+    loadMemberProjects();
+  }, [currentMember?.companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddMember = (data: any) => {
     const newTeam = [...team, { id: Date.now(), ...data, status: 'Offline' }];
@@ -762,6 +810,28 @@ if (currentMember) {
             <span className="flex items-center gap-3"><Building2 size={24}/> ObraFlow</span>
             <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white"><X size={20}/></button>
           </div>
+          {/* Seletor de obra — visível quando membro tem acesso a mais de uma */}
+          {companyProjects.length > 1 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-2">Obra</p>
+              <select
+                value={activeProjectId || ''}
+                onChange={e => { selectProject(e.target.value); setMobileMenuOpen(false); }}
+                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm font-bold cursor-pointer outline-none hover:bg-white/10 transition-colors"
+              >
+                {companyProjects.map(p => (
+                  <option key={p.id} value={p.id} className="bg-[#0d0d10] text-white">{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Obra única — apenas exibe o nome */}
+          {companyProjects.length === 1 && (
+            <div className="px-2 py-2 bg-white/5 border border-white/10 rounded-xl">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Obra</p>
+              <p className="text-sm font-bold text-white truncate">{companyProjects[0]?.name}</p>
+            </div>
+          )}
           <nav className="flex-1 space-y-2" onClick={() => setMobileMenuOpen(false)}>
             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Menu</p>
             {hasAccess('DASHBOARD') && (
@@ -800,12 +870,15 @@ if (currentMember) {
               </button>
             )}
           </nav>
-          <button onClick={() => { setCurrentMember(null); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
+          <button onClick={() => { setCurrentMember(null); supabase.auth.signOut(); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto"><LogOut size={16} /> Sair</button>
         </aside>
         <main className="flex-1 overflow-y-auto pb-20 w-full">
           <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-4 bg-[var(--background)]/80 backdrop-blur-md border-b border-white/5">
             <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-white"><Menu size={24} /></button>
-            <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18}/> ObraFlow</div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18}/> ObraFlow</div>
+              {project && <p className="text-[10px] text-slate-500 font-bold truncate max-w-[160px]">{project.name}</p>}
+            </div>
             <div className="w-10" />
           </header>
           <div className="p-4 md:p-10">
