@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { newId } from '@/lib/utils';
+import { exportMedicoes, loadExportMeta } from '@/lib/exportExcel';
 
 // Lazy import do Kanban
 const MedicoesKanban = dynamic(() => import('./MedicoesKanban'), {
@@ -67,12 +68,14 @@ interface MedicaoFormData {
 interface MedicaoObraSectionProps {
   projectId: string;
   currentUserName: string;
+  companyId?: string;
   canEdit?: boolean;
 }
 
 export default function MedicaoObraSection({
   projectId,
   currentUserName,
+  companyId = '',
   canEdit = true,
 }: MedicaoObraSectionProps) {
   const [medicoes, setMedicoes] = useState<Medicao[]>([]);
@@ -229,29 +232,23 @@ export default function MedicaoObraSection({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const downloadRelatorio = (disciplina?: string) => {
-    let filtered = medicoes;
-    if (disciplina) {
-      filtered = medicoes.filter(m => m.disciplina === disciplina);
-    }
-
-    let csv = 'Disciplina,Contratante,Descrição,Quantidade,Unidade,Valor Unitário,Valor Total\n';
-    let totalGeral = 0;
-
-    filtered.forEach(m => {
-      csv += `${m.disciplina},${m.contratante},${m.descricao},${m.quantidade},${m.unidade},${m.valorUnitario.toFixed(2)},${m.valorTotal.toFixed(2)}\n`;
-      totalGeral += m.valorTotal;
-    });
-
-    csv += `\n,,,,,,TOTAL,${totalGeral.toFixed(2)}`;
-
+  const downloadRelatorio = async (disciplina?: string) => {
+    const filtered = disciplina ? medicoes.filter(m => m.disciplina === disciplina) : medicoes;
     const disciplinaLabel = disciplina ? `_${disciplina}` : '_todos';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `medicoes${disciplinaLabel}.csv`;
-    a.click();
+    const meta = await loadExportMeta(companyId);
+    await exportMedicoes(
+      filtered.map(m => ({
+        disciplina: m.disciplina,
+        contratante: m.contratante,
+        descricao: m.descricao,
+        quantidade: m.quantidade,
+        unidade: m.unidade,
+        valorUnitario: m.valorUnitario,
+        valorTotal: m.valorTotal,
+      })),
+      `medicoes${disciplinaLabel}.xlsx`,
+      meta,
+    );
   };
 
   const filteredMedicoes = medicoes.filter(m => {

@@ -77,6 +77,7 @@ import { saveProjectData, loadProjectData, deleteProjectData, saveProjectPhases,
 import { getProgressPercentage, cn, newId } from '@/lib/utils';
 import { loadCompanies, loadUserProfilesFromSupabase, loadProjects, saveCompany, saveProject, saveProjects, saveCompanies, loadTeamByCompany, saveTeamByCompany, initializeDefaultData, getAllUsers, updateUserActive, deleteUser, deleteCompany, deleteProjectsByCompany, resetToCleanState, signOut, Company, Project } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { exportAndamento, exportCronograma, exportResumoGeral, loadExportMeta } from '@/lib/exportExcel';
 
 export default function GlobalApplication() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1635,38 +1636,34 @@ onRefresh={async () => {
 {activeTab === 'reports' && (
                   <div className="space-y-8">
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <ReportCard title="Andamento por Andar" desc="Status de cada disciplina por pavimento" onClick={() => {
-                           let csv = "Pavimento,Tipo,Disciplina,Status,Progresso\n";
-                           (project?.floors || []).sort((a,b) => a.number - b.number).forEach(f => {
-                             f.services.forEach(s => {
+                        <ReportCard title="Andamento por Andar" desc="Status de cada disciplina por pavimento" onClick={async () => {
+                           const meta = await loadExportMeta(currentUser?.companyId || '');
+                           const rows = (project?.floors || []).sort((a,b) => a.number - b.number).flatMap(f =>
+                             f.services.map(s => {
                                const pct = s.status === 'COMPLETED' ? 100 : s.status === 'IN_PROGRESS' ? 50 : 0;
-                               csv += `${f.label},${f.type},${s.name},${(s.status || '').replace('_',' ')},${pct}%\n`;
-                             });
-                           });
-                           const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                           const url = window.URL.createObjectURL(blob);
-                           const a = document.createElement('a'); a.href = url; a.download = `andamento_tecnico_${(project?.name || 'obra').replace(/\s/g,'_')}.csv`; a.click();
+                               return { pavimento: f.label, tipo: f.type, disciplina: s.name, status: (s.status || '').replace('_',' '), progresso: `${pct}%` };
+                             })
+                           );
+                           await exportAndamento(rows, `andamento_tecnico_${(project?.name || 'obra').replace(/\s/g,'_')}.xlsx`, meta);
                            setToast({ message: "Relatório gerado!", type: 'success' });
                         }}/>
-                        <ReportCard title="Cronograma de Fases" desc="Progresso detalhado de todas as fases" onClick={() => {
+                        <ReportCard title="Cronograma de Fases" desc="Progresso detalhado de todas as fases" onClick={async () => {
                            if (!phases || phases.length === 0) {
                              setToast({ message: "Nenhuma fase cadastrada!", type: 'error' });
                              return;
                            }
-                           let csv = "Fase,Peso(%),Progresso,Status,Inicio,Previsão Fim,Responsável,Sub-etapas Concluídas\n";
-                           phases.forEach(p => {
+                           const meta = await loadExportMeta(currentUser?.companyId || '');
+                           const rows = phases.flatMap(p => {
                              const subStepsConcluidas = p.subSteps.filter((s: any) => s.status === 'COMPLETED').length;
-                             csv += `${p.name},${p.weight},${p.progress}%,${(p.status || '').replace('_',' ')},${p.startDate || '-'},${p.endDate || '-'},${p.responsible || '-'},${subStepsConcluidas}/${p.subSteps.length}\n`;
-                             p.subSteps.forEach(s => {
-                               csv += `  - ${s.name},${s.progress}%,${(s.status || '').replace('_',' ')},${s.responsible || '-'}\n`;
-                             });
+                             const phaseRow = { nome: p.name, peso: p.weight, progresso: `${p.progress}%`, status: (p.status || '').replace('_',' '), inicio: p.startDate || '-', previsaoFim: p.endDate || '-', responsavel: p.responsible || '-', subEtapas: `${subStepsConcluidas}/${p.subSteps.length}`, isSubStep: false };
+                             const subRows = p.subSteps.map((s: any) => ({ nome: `  ${s.name}`, peso: '', progresso: `${s.progress}%`, status: (s.status || '').replace('_',' '), inicio: '', previsaoFim: '', responsavel: s.responsible || '-', subEtapas: '', isSubStep: true }));
+                             return [phaseRow, ...subRows];
                            });
-                           const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                           const url = window.URL.createObjectURL(blob);
-                           const a = document.createElement('a'); a.href = url; a.download = `cronograma_${(project?.name || 'obra').replace(/\s/g,'_')}.csv`; a.click();
+                           await exportCronograma(rows, `cronograma_${(project?.name || 'obra').replace(/\s/g,'_')}.xlsx`, meta);
                            setToast({ message: "Relatório gerado!", type: 'success' });
                         }}/>
-                        <ReportCard title="Resumo Geral da Obra" desc="Planilha completa com todos os dados" onClick={() => {
+                        <ReportCard title="Resumo Geral da Obra" desc="Planilha completa com todos os dados" onClick={async () => {
+                           const meta = await loadExportMeta(currentUser?.companyId || '');
                            const totalAndares = (project?.floors || []).length;
                            const andaresConcluidos = (project?.floors || []).filter(f => f.services.every(s => s.status === 'COMPLETED')).length || 0;
                            const andaresEmObra = (project?.floors || []).filter(f => f.services.some(s => s.status === 'IN_PROGRESS')).length || 0;
@@ -1676,36 +1673,39 @@ onRefresh={async () => {
                            const fasesEmAndamento = phases.filter(p => p.status === 'IN_PROGRESS').length;
                            const subStepsConcluidas = phases.reduce((acc, p) => acc + p.subSteps.filter((s: any) => s.status === 'COMPLETED').length, 0);
                            const progressoGeral = phases.length > 0 ? Math.round(phases.reduce((acc, p) => acc + p.progress, 0) / phases.length) : 0;
-                           
-                           let csv = `RELATÓRIO GERAL DA OBRA\n`;
-                           csv += `Projeto,${project?.name}\n`;
-                           csv += `Data,${new Date().toLocaleDateString('pt-BR')}\n`;
-                           csv += `\nRESUMO EXECUTIVO\n`;
-                           csv += `Andares Totais,${totalAndares}\n`;
-                           csv += `Andares Concluídos,${andaresConcluidos}\n`;
-                           csv += `Andares em Obra,${andaresEmObra}\n`;
-                           csv += `Disciplinas Concluídas,${disciplinasConcluidas}/${totalDisciplinas}\n`;
-                           csv += `Fases Concluídas,${fasesConcluidas}/${phases.length}\n`;
-                           csv += `Fases em Andamento,${fasesEmAndamento}\n`;
-                           csv += `Sub-etapas Concluídas,${subStepsConcluidas}\n`;
-                           csv += `Progresso Geral,${progressoGeral}%\n`;
-                           csv += `\nDETALHAMENTO POR FASE\n`;
-                           csv += `Fase,Peso,Progresso,Status,Sub-etapas,Responsável\n`;
-                           phases.forEach(p => {
-                             csv += `${p.name},${p.weight}%,${p.progress}%,${p.status},${p.subSteps.filter((s: any) => s.status === 'COMPLETED').length}/${p.subSteps.length},${p.responsible || '-'}\n`;
-                           });
-                           csv += `\nDETALHAMENTO POR ANDAR\n`;
-                           csv += `Andar,Tipo,Elétrica,Hidráulica,Alvenaria,Revestimento\n`;
-                           (project?.floors || []).sort((a,b) => a.number - b.number).forEach(f => {
-                             const getStatus = (name: string) => {
-                               const s = f.services.find(svc => svc.name === name);
-                               return s?.status === 'COMPLETED' ? 'OK' : s?.status === 'IN_PROGRESS' ? 'AND' : 'PEN';
-                             };
-                             csv += `${f.label},${f.type},${getStatus('Elétrica')},${getStatus('Hidráulica')},${getStatus('Alvenaria')},${getStatus('Revestimento')}\n`;
-                           });
-                           const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                           const url = window.URL.createObjectURL(blob);
-                           const a = document.createElement('a'); a.href = url; a.download = `relatorio_completo_${(project?.name || 'obra').replace(/\s/g,'_')}.csv`; a.click();
+                           const getStatus = (f: any, name: string) => {
+                             const s = f.services.find((svc: any) => svc.name === name);
+                             return s?.status === 'COMPLETED' ? 'OK' : s?.status === 'IN_PROGRESS' ? 'AND' : 'PEN';
+                           };
+                           await exportResumoGeral({
+                             projectName: project?.name || 'Obra',
+                             data: new Date().toLocaleDateString('pt-BR'),
+                             summary: [
+                               { label: 'Andares Totais', value: String(totalAndares) },
+                               { label: 'Andares Concluídos', value: String(andaresConcluidos) },
+                               { label: 'Andares em Obra', value: String(andaresEmObra) },
+                               { label: 'Disciplinas Concluídas', value: `${disciplinasConcluidas}/${totalDisciplinas}` },
+                               { label: 'Fases Concluídas', value: `${fasesConcluidas}/${phases.length}` },
+                               { label: 'Fases em Andamento', value: String(fasesEmAndamento) },
+                               { label: 'Sub-etapas Concluídas', value: String(subStepsConcluidas) },
+                               { label: 'Progresso Geral', value: `${progressoGeral}%` },
+                             ],
+                             fases: phases.map(p => ({
+                               nome: p.name,
+                               peso: `${p.weight}%`,
+                               progresso: `${p.progress}%`,
+                               status: p.status || '',
+                               subEtapas: `${p.subSteps.filter((s: any) => s.status === 'COMPLETED').length}/${p.subSteps.length}`,
+                               responsavel: p.responsible || '-',
+                             })),
+                             andares: (project?.floors || []).sort((a,b) => a.number - b.number).map(f => ({
+                               label: f.label, tipo: f.type,
+                               eletrica: getStatus(f, 'Elétrica'),
+                               hidraulica: getStatus(f, 'Hidráulica'),
+                               alvenaria: getStatus(f, 'Alvenaria'),
+                               revestimento: getStatus(f, 'Revestimento'),
+                             })),
+                           }, `relatorio_completo_${(project?.name || 'obra').replace(/\s/g,'_')}.xlsx`, meta);
                            setToast({ message: "Relatório gerado!", type: 'success' });
                         }}/>
                      </div>
@@ -1721,9 +1721,10 @@ onRefresh={async () => {
                 )}
 
 {activeTab === 'medicoes' && (
-                  <MedicaoObraSection 
+                  <MedicaoObraSection
                     projectId={activeProjectId || ''}
                     currentUserName={currentUser?.name || 'Engenheiro'}
+                    companyId={currentUser?.companyId || ''}
                   />
                 )}
 
