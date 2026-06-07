@@ -154,6 +154,30 @@ export async function deleteFinancialEntry(id: string): Promise<void> {
   if (error) console.error('deleteFinancialEntry', error);
 }
 
+// ─── Bulk loaders (multi-project) ────────────────────────────────────────────
+
+export async function loadAllBudgetItems(projectIds: string[]): Promise<BudgetItem[]> {
+  if (projectIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('budget_items')
+    .select('*')
+    .in('project_id', projectIds)
+    .order('planned_month', { ascending: true });
+  if (error) { console.error('loadAllBudgetItems', error); return []; }
+  return (data || []).map(mapBudgetItem);
+}
+
+export async function loadAllFinancialEntries(projectIds: string[]): Promise<FinancialEntry[]> {
+  if (projectIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('financial_entries')
+    .select('*')
+    .in('project_id', projectIds)
+    .order('date', { ascending: false });
+  if (error) { console.error('loadAllFinancialEntries', error); return []; }
+  return (data || []).map(mapFinancialEntry);
+}
+
 // ─── Computed helpers ─────────────────────────────────────────────────────────
 
 export function buildSCurveData(items: BudgetItem[], entries: FinancialEntry[]): SCurvePoint[] {
