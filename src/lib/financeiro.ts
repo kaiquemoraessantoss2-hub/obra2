@@ -72,7 +72,7 @@ function mapFinancialEntry(r: Record<string, unknown>): FinancialEntry {
   return {
     id:            r.id as string,
     projectId:     r.project_id as string,
-    budgetItemId:  r.budget_item_id as string | undefined,
+    budgetItemId:  (r.budget_item_id as string | null) ?? undefined,
     description:   r.description as string,
     amount:        Number(r.amount),
     type:          r.type as EntryType,
@@ -159,18 +159,20 @@ export async function deleteFinancialEntry(id: string): Promise<void> {
 export function buildSCurveData(items: BudgetItem[], entries: FinancialEntry[]): SCurvePoint[] {
   const expenses = entries.filter(e => e.type === 'EXPENSE');
   const monthSet = new Set<string>();
-  items.forEach(i => monthSet.add(i.plannedMonth.slice(0, 7)));
-  expenses.forEach(e => monthSet.add(e.date.slice(0, 7)));
+  items.forEach(i => { if (i.plannedMonth.length >= 7) monthSet.add(i.plannedMonth.slice(0, 7)); });
+  expenses.forEach(e => { if (e.date.length >= 7) monthSet.add(e.date.slice(0, 7)); });
   const months = Array.from(monthSet).sort();
 
   const plannedByMonth: Record<string, number> = {};
   items.forEach(i => {
+    if (i.plannedMonth.length < 7) return;
     const m = i.plannedMonth.slice(0, 7);
     plannedByMonth[m] = (plannedByMonth[m] || 0) + i.plannedAmount;
   });
 
   const realByMonth: Record<string, number> = {};
   expenses.forEach(e => {
+    if (e.date.length < 7) return;
     const m = e.date.slice(0, 7);
     realByMonth[m] = (realByMonth[m] || 0) + e.amount;
   });
@@ -203,7 +205,9 @@ export function buildCategoryData(items: BudgetItem[], entries: FinancialEntry[]
     map[cat]!.real += e.amount;
   });
 
-  return (Object.keys(map) as BudgetCategory[]).map(cat => ({
+  return (Object.keys(map) as BudgetCategory[])
+    .filter(cat => BUDGET_CATEGORIES.includes(cat))
+    .map(cat => ({
     category: cat,
     label:    CATEGORY_LABELS[cat] ?? cat,
     planned:  Math.round(map[cat]!.planned * 100) / 100,
@@ -213,11 +217,12 @@ export function buildCategoryData(items: BudgetItem[], entries: FinancialEntry[]
 
 export function buildCashFlowData(entries: FinancialEntry[]): CashFlowPoint[] {
   const monthSet = new Set<string>();
-  entries.forEach(e => monthSet.add(e.date.slice(0, 7)));
+  entries.forEach(e => { if (e.date.length >= 7) monthSet.add(e.date.slice(0, 7)); });
   const months = Array.from(monthSet).sort();
 
   const byMonth: Record<string, { income: number; expense: number }> = {};
   entries.forEach(e => {
+    if (e.date.length < 7) return;
     const m = e.date.slice(0, 7);
     if (!byMonth[m]) byMonth[m] = { income: 0, expense: 0 };
     if (e.type === 'INCOME') byMonth[m].income  += e.amount;
