@@ -163,7 +163,7 @@ ${section('Atividades Realizadas', rdo.activities)}
 ${section('Materiais Utilizados', rdo.materialsUsed)}
 ${section('Ocorrências', rdo.occurrences)}
 ${section('Observações', rdo.observations)}
-<div style="margin-top:32px;font-size:10px;color:#aaa">Gerado em ${new Date().toLocaleString('pt-BR')} — ObraFlow</div>
+<div style="margin-top:32px;font-size:10px;color:#aaa">Gerado em ${new Date().toLocaleString('pt-BR')} — Obramesh</div>
 <script>window.onload=()=>window.print()</script>
 </body>
 </html>`;

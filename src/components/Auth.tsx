@@ -122,7 +122,7 @@ export default function Auth({ onLogin }: AuthProps) {
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { name, role: email === 'admin@obraflow.com' ? 'SUPERADMIN' : 'ADMIN' } },
+          options: { data: { name, role: email === 'admin@obramesh.com' ? 'SUPERADMIN' : 'ADMIN' } },
         });
         if (authError) { setError(authError.message); return; }
         if (data.user) {
@@ -196,7 +196,7 @@ export default function Auth({ onLogin }: AuthProps) {
         <div className="inline-flex w-14 h-14 bg-blue-600 rounded-2xl items-center justify-center shadow-2xl shadow-blue-500/30 mb-3 animate-bounce-subtle">
           <Building2 className="text-white" size={28} />
         </div>
-        <h1 className="text-3xl font-black text-white tracking-tighter">ObraFlow</h1>
+        <h1 className="text-3xl font-black text-white tracking-tighter">Obramesh</h1>
         <p className="text-[#64748b] font-bold uppercase tracking-[0.2em] text-[9px] mt-1">Gestão de Obras Premium</p>
       </div>
 

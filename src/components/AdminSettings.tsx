@@ -484,7 +484,7 @@ function UsersSection({ users, loading, onAdd, onDelete }: { users: UserType[]; 
 
 function SystemSettings() {
   const [settings, setSettings] = useState({
-    siteName: 'ObraFlow',
+    siteName: 'Obramesh',
     allowRegister: true,
     requireApproval: true,
     maxProjectsPerCompany: 10,

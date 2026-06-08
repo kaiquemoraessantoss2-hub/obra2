@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Lock } from 'lucide-react';
-import { AppModule, AccessLevel, PlanType } from '@/types/plans';
+import { AppModule, AccessLevel, PlanType, DEFAULT_PERMISSIONS } from '@/types/plans';
 
 interface ModuleGuardProps {
   module: AppModule;
@@ -23,7 +23,8 @@ export default function ModuleGuard({
     return <>{children}</>;
   }
 
-  const hasAccess = memberPermissions[module] === access || memberPermissions[module] === 'EDITAR';
+  const level: AccessLevel = memberPermissions[module] ?? DEFAULT_PERMISSIONS[module] ?? 'BLOQUEADO';
+  const hasAccess = level === access || level === 'EDITAR';
 
   if (hasAccess) {
     return <>{children}</>;

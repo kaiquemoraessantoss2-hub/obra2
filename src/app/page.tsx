@@ -87,6 +87,8 @@ function AppShell() {
     const defaultPerms: Record<string, string> = {
       DASHBOARD: 'VER', CRONOGRAMA: 'VER', PAVIMENTOS: 'VER',
       MEDICAO: 'VER', DOCUMENTOS: 'VER', PENDENCIAS: 'VER', MEDICAO_OBRA: 'VER',
+      VISAO_GERAL: 'VER', CALENDARIO: 'VER', RELATORIOS: 'VER',
+      ALMOXARIFADO: 'VER', COMPRAS: 'VER', RDO: 'VER', FINANCEIRO: 'VER',
     };
     const perms = currentMember.permissions || defaultPerms;
     const activeModule = currentMember.activeModule || 'welcome';
@@ -98,7 +100,7 @@ function AppShell() {
         {mobileMenuOpen && <div onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" />}
         <aside className={`fixed lg:sticky inset-y-0 left-0 lg:top-0 lg:h-screen w-[280px] flex flex-col p-8 space-y-10 border-r border-white/5 bg-[var(--background)] z-50 lg:z-10 transform transition-transform duration-300 lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex items-center justify-between px-2 font-black text-xl italic tracking-tighter text-white">
-            <span className="flex items-center gap-3"><Building2 size={24} /> ObraFlow</span>
+            <span className="flex items-center gap-3"><Building2 size={24} /> Obramesh</span>
             <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white"><X size={20} /></button>
           </div>
           {companyProjects.length > 1 && (
@@ -167,7 +169,7 @@ function AppShell() {
           <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-4 bg-[var(--background)]/80 backdrop-blur-md border-b border-white/5">
             <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-white"><Menu size={24} /></button>
             <div className="flex flex-col items-center">
-              <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18} /> ObraFlow</div>
+              <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18} /> Obramesh</div>
               {project && <p className="text-[10px] text-slate-500 font-bold truncate max-w-[160px]">{project.name}</p>}
             </div>
             <div className="w-10" />
@@ -297,7 +299,7 @@ function AppShell() {
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside className={`fixed lg:sticky inset-y-0 left-0 lg:top-0 lg:h-screen w-[280px] flex flex-col p-8 space-y-10 border-r border-white/5 bg-[var(--background)] z-50 lg:z-10 transform transition-transform duration-300 lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-2 font-black text-xl italic tracking-tighter text-white">
-          <span className="flex items-center gap-3"><Building2 size={24} /> ObraFlow</span>
+          <span className="flex items-center gap-3"><Building2 size={24} /> Obramesh</span>
           <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white"><X size={20} /></button>
         </div>
         <nav className="flex-1 space-y-8 no-scrollbar overflow-y-auto" onClick={() => setMobileMenuOpen(false)}>
@@ -357,7 +359,7 @@ function AppShell() {
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-4 bg-[var(--background)]/80 backdrop-blur-md border-b border-white/5">
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-white"><Menu size={24} /></button>
           <div className="flex flex-col items-center">
-            <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18} /> ObraFlow</div>
+            <div className="flex items-center gap-2 font-black text-base italic text-white"><Building2 size={18} /> Obramesh</div>
             {project && <p className="text-[10px] text-slate-500 font-bold truncate max-w-[160px]">{project.name}</p>}
           </div>
           <div className="w-10" />
@@ -488,7 +490,11 @@ function AppShell() {
                 </ModuleGuard>
               )}
 
-              {activeTab === 'calendar' && <ConstructionCalendar companyId={currentViewCompanyId} projectId={activeProjectId} />}
+              {activeTab === 'calendar' && (
+                <ModuleGuard module="CALENDARIO" memberPermissions={perms} access="VER">
+                  <ConstructionCalendar companyId={currentViewCompanyId} projectId={activeProjectId} />
+                </ModuleGuard>
+              )}
 
               {activeTab === 'engineering' && <EngineeringTab />}
 
@@ -546,7 +552,11 @@ function AppShell() {
                 <TeamPage ownerId={currentUser?.id || 'default'} companyId={currentUser?.companyId || ''} plan="GOLD" />
               )}
 
-              {activeTab === 'reports' && <ReportsTab />}
+              {activeTab === 'reports' && (
+                <ModuleGuard module="RELATORIOS" memberPermissions={perms} access="VER">
+                  <ReportsTab />
+                </ModuleGuard>
+              )}
 
               {activeTab === 'pendencias' && (
                 <PendenciasSection projectId={activeProjectId || ''} currentUserName={currentUser?.name || ''} canEdit />
@@ -556,12 +566,36 @@ function AppShell() {
                 <MedicaoObraSection projectId={activeProjectId || ''} currentUserName={currentUser?.name || ''} />
               )}
 
-              {activeTab === 'almoxarifado' && <AlmoxarifadoTab />}
-              {activeTab === 'compras' && <ComprasTab />}
-              {activeTab === 'documentos' && <DocumentosTab />}
-              {activeTab === 'rdo' && <RDOTab />}
-              {activeTab === 'financeiro' && <FinanceiroTab />}
-              {activeTab === 'visao-geral' && <VisaoGeralTab />}
+              {activeTab === 'almoxarifado' && (
+                <ModuleGuard module="ALMOXARIFADO" memberPermissions={perms} access="VER">
+                  <AlmoxarifadoTab />
+                </ModuleGuard>
+              )}
+              {activeTab === 'compras' && (
+                <ModuleGuard module="COMPRAS" memberPermissions={perms} access="VER">
+                  <ComprasTab />
+                </ModuleGuard>
+              )}
+              {activeTab === 'documentos' && (
+                <ModuleGuard module="DOCUMENTOS" memberPermissions={perms} access="VER">
+                  <DocumentosTab />
+                </ModuleGuard>
+              )}
+              {activeTab === 'rdo' && (
+                <ModuleGuard module="RDO" memberPermissions={perms} access="VER">
+                  <RDOTab />
+                </ModuleGuard>
+              )}
+              {activeTab === 'financeiro' && (
+                <ModuleGuard module="FINANCEIRO" memberPermissions={perms} access="VER">
+                  <FinanceiroTab />
+                </ModuleGuard>
+              )}
+              {activeTab === 'visao-geral' && (
+                <ModuleGuard module="VISAO_GERAL" memberPermissions={perms} access="VER">
+                  <VisaoGeralTab />
+                </ModuleGuard>
+              )}
               {activeTab === 'settings' && <SettingsTab />}
             </div>
           )}

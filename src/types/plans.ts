@@ -2,14 +2,21 @@
 // TIPOS DE PLANOS E EQUIPE
 // ============================================
 
-export type AppModule = 
+export type AppModule =
   | 'DASHBOARD'
   | 'CRONOGRAMA'
   | 'PAVIMENTOS'
   | 'MEDICAO'
   | 'DOCUMENTOS'
   | 'PENDENCIAS'
-  | 'MEDICAO_OBRA';
+  | 'MEDICAO_OBRA'
+  | 'VISAO_GERAL'
+  | 'CALENDARIO'
+  | 'RELATORIOS'
+  | 'ALMOXARIFADO'
+  | 'COMPRAS'
+  | 'RDO'
+  | 'FINANCEIRO';
 
 export interface Medicao {
   id: string;
@@ -52,13 +59,20 @@ export const PLAN_LIMITS: Record<PlanType, { maxMembers: number; label: string }
 };
 
 export const DEFAULT_PERMISSIONS: Record<AppModule, AccessLevel> = {
-  DASHBOARD:   'VER',
-  CRONOGRAMA:  'VER',
-  PAVIMENTOS: 'BLOQUEADO',
-  MEDICAO:    'BLOQUEADO',
-  DOCUMENTOS: 'BLOQUEADO',
-  PENDENCIAS: 'VER',
+  DASHBOARD:    'VER',
+  CRONOGRAMA:   'VER',
+  PAVIMENTOS:   'BLOQUEADO',
+  MEDICAO:      'BLOQUEADO',
+  DOCUMENTOS:   'BLOQUEADO',
+  PENDENCIAS:   'VER',
   MEDICAO_OBRA: 'VER',
+  VISAO_GERAL:  'VER',
+  CALENDARIO:   'VER',
+  RELATORIOS:   'BLOQUEADO',
+  ALMOXARIFADO: 'BLOQUEADO',
+  COMPRAS:      'BLOQUEADO',
+  RDO:          'BLOQUEADO',
+  FINANCEIRO:   'BLOQUEADO',
 };
 
 export const ALL_MODULES: AppModule[] = [
@@ -69,16 +83,30 @@ export const ALL_MODULES: AppModule[] = [
   'DOCUMENTOS',
   'PENDENCIAS',
   'MEDICAO_OBRA',
+  'VISAO_GERAL',
+  'CALENDARIO',
+  'RELATORIOS',
+  'ALMOXARIFADO',
+  'COMPRAS',
+  'RDO',
+  'FINANCEIRO',
 ];
 
 export const MODULE_LABELS: Record<AppModule, string> = {
-  DASHBOARD:   'Dashboard',
-  CRONOGRAMA:  'Cronograma',
-  PAVIMENTOS: 'Pavimentos',
-  MEDICAO:     'Medição',
-  DOCUMENTOS: 'Documentos',
-  PENDENCIAS:  'Pendências',
+  DASHBOARD:    'Dashboard',
+  CRONOGRAMA:   'Cronograma',
+  PAVIMENTOS:   'Pavimentos',
+  MEDICAO:      'Medição',
+  DOCUMENTOS:   'Documentos',
+  PENDENCIAS:   'Pendências',
   MEDICAO_OBRA: 'Medição da Obra',
+  VISAO_GERAL:  'Visão Geral',
+  CALENDARIO:   'Calendário',
+  RELATORIOS:   'Relatórios',
+  ALMOXARIFADO: 'Almoxarifado',
+  COMPRAS:      'Compras',
+  RDO:          'RDO',
+  FINANCEIRO:   'Financeiro',
 };
 
 // Re-exports (não criar tipos duplicados)
