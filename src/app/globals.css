@@ -130,3 +130,9 @@
 .animate-bounce-subtle {
   animation: bounceSubtle 3s ease-in-out infinite;
 }
+
+/* Fix: options inside dark selects */
+select option {
+  background-color: #0d0d10;
+  color: #ffffff;
+}
