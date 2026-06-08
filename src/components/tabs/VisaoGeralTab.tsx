@@ -172,6 +172,8 @@ export default function VisaoGeralTab() {
       setAllEntries(entries);
       setLoading(false);
     }).catch(() => {
+      setAllItems([]);
+      setAllEntries([]);
       setLoading(false);
     });
   }, [companyProjects]);
