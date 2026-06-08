@@ -4,7 +4,7 @@ import {
   Building2, CheckCircle, BarChart3, FileText, Plus,
   LayoutDashboard, Settings, Building, Users, Shield,
   CreditCard, AlertTriangle, Box, Layers, Package,
-  Bell, Clock, DollarSign, Menu, LogOut, X, Pencil, ShoppingCart, FolderOpen, ClipboardList, TrendingUp,
+  Bell, Clock, DollarSign, Menu, LogOut, X, Pencil, ShoppingCart, FolderOpen, ClipboardList, TrendingUp, LayoutGrid,
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import BuildingMap from '@/components/BuildingMap';
@@ -36,6 +36,7 @@ import ComprasTab from '@/components/tabs/ComprasTab';
 import DocumentosTab from '@/components/tabs/DocumentosTab';
 import RDOTab from '@/components/tabs/RDOTab';
 import FinanceiroTab from '@/components/tabs/FinanceiroTab';
+import VisaoGeralTab from '@/components/tabs/VisaoGeralTab';
 import { cn } from '@/lib/utils';
 import {
   saveProjects, saveProject, saveCompany, loadCompanies, getAllUsers,
@@ -312,6 +313,7 @@ function AppShell() {
             <>
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">Principal</p>
+                <NavItem icon={LayoutGrid} label="Visão Geral" active={activeTab === 'visao-geral'} onClick={() => setActiveTab('visao-geral')} />
                 <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                 <NavItem icon={Clock} label="Cronograma" active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
                 <NavItem icon={Building} label="Calendário" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
@@ -559,6 +561,7 @@ function AppShell() {
               {activeTab === 'documentos' && <DocumentosTab />}
               {activeTab === 'rdo' && <RDOTab />}
               {activeTab === 'financeiro' && <FinanceiroTab />}
+              {activeTab === 'visao-geral' && <VisaoGeralTab />}
               {activeTab === 'settings' && <SettingsTab />}
             </div>
           )}
