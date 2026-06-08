@@ -176,7 +176,7 @@ function AppShell() {
           </header>
           <div className="p-4 md:p-10">
             {activeModule === 'dashboard' && hasAccess('DASHBOARD') && (
-              <ModuleGuard module="DASHBOARD" memberPermissions={perms} access={canEdit('DASHBOARD') ? 'EDITAR' : 'VER'}>
+              <ModuleGuard module="DASHBOARD" access={canEdit('DASHBOARD') ? 'EDITAR' : 'VER'}>
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <StatCard title="Conclusão Total" value={`${totalProgress}%`} icon={BarChart3} growth="+4.5%" />
@@ -200,7 +200,7 @@ function AppShell() {
               <EngineeringTab />
             )}
             {activeModule === 'pendencias' && hasAccess('PENDENCIAS') && (
-              <ModuleGuard module="PENDENCIAS" memberPermissions={perms} access={canEdit('PENDENCIAS') ? 'EDITAR' : 'VER'}>
+              <ModuleGuard module="PENDENCIAS" access={canEdit('PENDENCIAS') ? 'EDITAR' : 'VER'}>
                 <PendenciasSection
                   projectId={activeProjectId || ''}
                   currentUserName={currentMember.name}
@@ -209,7 +209,7 @@ function AppShell() {
               </ModuleGuard>
             )}
             {activeModule === 'medicoes' && hasAccess('MEDICAO_OBRA') && (
-              <ModuleGuard module="MEDICAO_OBRA" memberPermissions={perms} access={canEdit('MEDICAO_OBRA') ? 'EDITAR' : 'VER'}>
+              <ModuleGuard module="MEDICAO_OBRA" access={canEdit('MEDICAO_OBRA') ? 'EDITAR' : 'VER'}>
                 <MedicaoObraSection projectId={activeProjectId || ''} currentUserName={currentMember.name} />
               </ModuleGuard>
             )}
@@ -491,7 +491,7 @@ function AppShell() {
               )}
 
               {activeTab === 'calendar' && (
-                <ModuleGuard module="CALENDARIO" memberPermissions={perms} access="VER">
+                <ModuleGuard module="CALENDARIO" access="VER">
                   <ConstructionCalendar companyId={currentViewCompanyId} projectId={activeProjectId} />
                 </ModuleGuard>
               )}
@@ -553,7 +553,7 @@ function AppShell() {
               )}
 
               {activeTab === 'reports' && (
-                <ModuleGuard module="RELATORIOS" memberPermissions={perms} access="VER">
+                <ModuleGuard module="RELATORIOS" access="VER">
                   <ReportsTab />
                 </ModuleGuard>
               )}
@@ -567,32 +567,32 @@ function AppShell() {
               )}
 
               {activeTab === 'almoxarifado' && (
-                <ModuleGuard module="ALMOXARIFADO" memberPermissions={perms} access="VER">
+                <ModuleGuard module="ALMOXARIFADO" access="VER">
                   <AlmoxarifadoTab />
                 </ModuleGuard>
               )}
               {activeTab === 'compras' && (
-                <ModuleGuard module="COMPRAS" memberPermissions={perms} access="VER">
+                <ModuleGuard module="COMPRAS" access="VER">
                   <ComprasTab />
                 </ModuleGuard>
               )}
               {activeTab === 'documentos' && (
-                <ModuleGuard module="DOCUMENTOS" memberPermissions={perms} access="VER">
+                <ModuleGuard module="DOCUMENTOS" access="VER">
                   <DocumentosTab />
                 </ModuleGuard>
               )}
               {activeTab === 'rdo' && (
-                <ModuleGuard module="RDO" memberPermissions={perms} access="VER">
+                <ModuleGuard module="RDO" access="VER">
                   <RDOTab />
                 </ModuleGuard>
               )}
               {activeTab === 'financeiro' && (
-                <ModuleGuard module="FINANCEIRO" memberPermissions={perms} access="VER">
+                <ModuleGuard module="FINANCEIRO" access="VER">
                   <FinanceiroTab />
                 </ModuleGuard>
               )}
               {activeTab === 'visao-geral' && (
-                <ModuleGuard module="VISAO_GERAL" memberPermissions={perms} access="VER">
+                <ModuleGuard module="VISAO_GERAL" access="VER">
                   <VisaoGeralTab />
                 </ModuleGuard>
               )}
