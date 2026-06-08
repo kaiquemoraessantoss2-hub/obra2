@@ -74,6 +74,8 @@ export interface CalendarEvent {
   projectId?: string;
   company_id?: string;
   day?: number;
+  month?: number;
+  year?: number;
   time?: string;
   status?: 'PENDING' | 'COMPLETED';
 }
@@ -573,7 +575,11 @@ export async function loadCalendarEvents(scope: { companyId: string; projectId?:
     console.error('Erro ao carregar calendar_events:', error);
     return [];
   }
-  return data ?? [];
+  return (data ?? []).map(row => ({
+    ...row,
+    month: row.date ? new Date(row.date + 'T00:00:00').getMonth() : undefined,
+    year: row.date ? new Date(row.date + 'T00:00:00').getFullYear() : undefined,
+  }));
 }
 
 export async function saveCalendarEvents(scope: { companyId: string; projectId?: string | null }, events: CalendarEvent[]): Promise<void> {
@@ -600,6 +606,9 @@ export async function saveCalendarEvents(scope: { companyId: string; projectId?:
     time: e.time,
     status: e.status ?? 'PENDING',
     description: e.description ?? null,
+    date: e.month != null && e.year != null && e.day != null
+      ? `${e.year}-${String(e.month + 1).padStart(2, '0')}-${String(e.day).padStart(2, '0')}`
+      : (e.date ?? null),
   }));
   const { error: insError } = await supabase.from('calendar_events').insert(rows);
   if (insError) {

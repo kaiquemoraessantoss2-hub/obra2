@@ -72,7 +72,11 @@ export default function ConstructionCalendar({ companyId, projectId }: Props) {
             <div key={d} className="bg-[var(--background)] p-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">{d}</div>
           ))}
           {calendarDays.map((day, idx) => {
-             const dayEvents = day ? events.filter(e => e.day === day) : [];
+             const currentMonth = currentDate.getMonth();
+             const currentYear = currentDate.getFullYear();
+             const dayEvents = day ? events.filter(e =>
+               e.day === day && e.month === currentMonth && e.year === currentYear
+             ) : [];
              const hasEvents = dayEvents.length > 0;
              return (
                 <div
@@ -121,7 +125,7 @@ export default function ConstructionCalendar({ companyId, projectId }: Props) {
         <div className="glass-card p-8 rounded-[32px] border-white/5">
            <h3 className="text-lg font-black text-white mb-6">Próximas Atividades</h3>
            <div className="space-y-6">
-              {events.slice(0, 3).map((e, i) => (
+              {events.filter(e => e.month === currentDate.getMonth() && e.year === currentDate.getFullYear()).slice(0, 3).map((e, i) => (
                  <div key={i} className="flex gap-4 group">
                     <div className={cn(
                        "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
@@ -213,7 +217,12 @@ export default function ConstructionCalendar({ companyId, projectId }: Props) {
               <button 
                 onClick={() => {
                   if (newEvent.title.trim()) {
-                    handleSaveEvents([...events, { ...newEvent, status: 'PENDING' }]);
+                    handleSaveEvents([...events, {
+                      ...newEvent,
+                      month: currentDate.getMonth(),
+                      year: currentDate.getFullYear(),
+                      status: 'PENDING',
+                    }]);
                     setIsAddingEvent(false);
                     setNewEvent({ title: '', type: 'TASK', day: 1, time: '08:00' });
                   }
