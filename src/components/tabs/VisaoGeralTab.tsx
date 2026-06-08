@@ -61,7 +61,7 @@ function aggregateFinancials(
 interface ProjectCardProps {
   project: { id: string; name: string; location?: string; floors?: any[] };
   financials: ProjectFinancials;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
 }
 
 function ProjectCard({ project, financials, onClick }: ProjectCardProps) {
@@ -170,6 +170,8 @@ export default function VisaoGeralTab() {
     ]).then(([items, entries]) => {
       setAllItems(items);
       setAllEntries(entries);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
   }, [companyProjects]);
