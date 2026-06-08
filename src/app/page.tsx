@@ -160,6 +160,41 @@ function AppShell() {
                 <DollarSign size={18} /> Medições
               </button>
             )}
+            {hasAccess('VISAO_GERAL') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'visaogeral' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'visaogeral' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <LayoutGrid size={18} /> Visão Geral
+              </button>
+            )}
+            {hasAccess('CALENDARIO') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'calendario' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'calendario' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <Clock size={18} /> Calendário
+              </button>
+            )}
+            {hasAccess('RELATORIOS') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'relatorios' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'relatorios' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <TrendingUp size={18} /> Relatórios
+              </button>
+            )}
+            {hasAccess('ALMOXARIFADO') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'almoxarifado' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'almoxarifado' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <Package size={18} /> Almoxarifado
+              </button>
+            )}
+            {hasAccess('COMPRAS') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'compras' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'compras' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <ShoppingCart size={18} /> Compras
+              </button>
+            )}
+            {hasAccess('RDO') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'rdo' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'rdo' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <ClipboardList size={18} /> RDO
+              </button>
+            )}
+            {hasAccess('FINANCEIRO') && (
+              <button onClick={() => setCurrentMember((prev: any) => ({ ...prev, activeModule: 'financeiro' }))} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeModule === 'financeiro' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+                <DollarSign size={18} /> Financeiro
+              </button>
+            )}
           </nav>
           <button onClick={() => { setCurrentMember(null); supabase.auth.signOut(); }} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest border-t border-white/5 pt-8 mt-auto">
             <LogOut size={16} /> Sair
@@ -211,6 +246,41 @@ function AppShell() {
             {activeModule === 'medicoes' && hasAccess('MEDICAO_OBRA') && (
               <ModuleGuard module="MEDICAO_OBRA" access={canEdit('MEDICAO_OBRA') ? 'EDITAR' : 'VER'}>
                 <MedicaoObraSection projectId={activeProjectId || ''} currentUserName={currentMember.name} />
+              </ModuleGuard>
+            )}
+            {activeModule === 'visaogeral' && hasAccess('VISAO_GERAL') && (
+              <ModuleGuard module="VISAO_GERAL" access={canEdit('VISAO_GERAL') ? 'EDITAR' : 'VER'}>
+                <VisaoGeralTab />
+              </ModuleGuard>
+            )}
+            {activeModule === 'calendario' && hasAccess('CALENDARIO') && (
+              <ModuleGuard module="CALENDARIO" access={canEdit('CALENDARIO') ? 'EDITAR' : 'VER'}>
+                <ConstructionCalendar companyId={currentMember.companyId || ''} projectId={activeProjectId} />
+              </ModuleGuard>
+            )}
+            {activeModule === 'relatorios' && hasAccess('RELATORIOS') && (
+              <ModuleGuard module="RELATORIOS" access={canEdit('RELATORIOS') ? 'EDITAR' : 'VER'}>
+                <ReportsTab />
+              </ModuleGuard>
+            )}
+            {activeModule === 'almoxarifado' && hasAccess('ALMOXARIFADO') && (
+              <ModuleGuard module="ALMOXARIFADO" access={canEdit('ALMOXARIFADO') ? 'EDITAR' : 'VER'}>
+                <AlmoxarifadoTab />
+              </ModuleGuard>
+            )}
+            {activeModule === 'compras' && hasAccess('COMPRAS') && (
+              <ModuleGuard module="COMPRAS" access={canEdit('COMPRAS') ? 'EDITAR' : 'VER'}>
+                <ComprasTab />
+              </ModuleGuard>
+            )}
+            {activeModule === 'rdo' && hasAccess('RDO') && (
+              <ModuleGuard module="RDO" access={canEdit('RDO') ? 'EDITAR' : 'VER'}>
+                <RDOTab />
+              </ModuleGuard>
+            )}
+            {activeModule === 'financeiro' && hasAccess('FINANCEIRO') && (
+              <ModuleGuard module="FINANCEIRO" access={canEdit('FINANCEIRO') ? 'EDITAR' : 'VER'}>
+                <FinanceiroTab />
               </ModuleGuard>
             )}
             {(!activeModule || activeModule === 'welcome') && (
